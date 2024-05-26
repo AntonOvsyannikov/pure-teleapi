@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "pure-teleapi"
+version = "1.7.4"
+description = "Pure declarative Telegram Bot API and implementation with pydantic models and sync and async API Protocol."
+authors = ["Anton Ovsyannikov <anton.ovsyannikov@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/AntonOvsyannikov/pure-teleapi"
+packages = [{ include = "teleapi" }]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pydantic = "*"
+httpx = { version = "*", optional = true }
+
+[tool.poetry.extras]
+httpx = ["httpx"]
+
+[tool.poetry.group.dev.dependencies]
+beautifulsoup4 = "~4"
+
+[tool.black]
+line-length = 120
+exclude = "teleapi/teleapi.py"
+
+[tool.isort]
+skip = ["teleapi/teleapi.py"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
