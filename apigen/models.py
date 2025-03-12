@@ -240,7 +240,15 @@ class ApiField(BaseModel):
         name = self.name if self.name != "from" else "from_"
         alias = 'alias="from"' if self.name == "from" else ""
         default = f"None" if self.optional else ""
-        eq = f" = Field({default}, {alias})" if default and alias else f" = {default}" if default else ""
+
+        if alias and default:
+            eq = f" = Field({default}, {alias})"
+        elif alias:
+            eq = f" = Field({alias})"
+        elif default:
+            eq = f" = {default}"
+        else:
+            eq = ""
 
         f.write(f"    {name}: {self.api_type.py_annotation}{eq}\n")
         f.write('    """ ')

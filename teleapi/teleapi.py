@@ -2531,7 +2531,7 @@ class CallbackQuery(BaseModel):
     id: str
     """ Unique identifier for this query """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ Sender """
 
     chat_instance: str
@@ -2727,7 +2727,7 @@ class ChatMemberUpdated(BaseModel):
     chat: 'Chat'
     """ Chat the user belongs to """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ Performer of the action, which resulted in the change """
 
     date: int
@@ -2969,7 +2969,7 @@ class ChatJoinRequest(BaseModel):
     chat: 'Chat'
     """ Chat to which the request was sent """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ User that sent the join request """
 
     user_chat_id: int
@@ -4098,7 +4098,7 @@ class InlineQuery(BaseModel):
     id: str
     """ Unique identifier for this query """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ Sender """
 
     query: str
@@ -5265,7 +5265,7 @@ class ChosenInlineResult(BaseModel):
     result_id: str
     """ The unique identifier for the result that was chosen """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ The user that chose the result """
 
     query: str
@@ -5483,7 +5483,7 @@ class ShippingQuery(BaseModel):
     id: str
     """ Unique query identifier """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ User who sent the query """
 
     invoice_payload: str
@@ -5501,7 +5501,7 @@ class PreCheckoutQuery(BaseModel):
     id: str
     """ Unique query identifier """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ User who sent the query """
 
     currency: str
@@ -5530,7 +5530,7 @@ class PaidMediaPurchased(BaseModel):
     This object contains information about a paid media purchase.
     """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ User who purchased the media """
 
     paid_media_payload: str
