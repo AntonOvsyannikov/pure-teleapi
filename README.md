@@ -3,7 +3,7 @@ Pure declarative Telegram Bot API and implementation with Pydantic models
 and Protocol-based API definitions (both sync and async) with neat typehints and docstrings, 
 generated directly from Telegram website docs, parser/generator is included.
 
-## Argue
+## Motivation
 
 Get tired of dozens telegram libs with strange json-parsing stuff
 and a bunch of unnecessary bells and whistles? Me too, so please meet N+1th one.
@@ -18,7 +18,7 @@ and just few of lines of python magic to make it work with any of
 
 ## Features
 
-* Fully-generated from API [docs](https://core.telegram.org/bots/api) (Bot API 7.4 from May 28, 2024).
+* Fully-generated from API [docs](https://core.telegram.org/bots/api) (Bot API 8.3 from Feb 12, 2025).
 * Always is up-to-date, because parser/generator is included.
 * Full set of `pydantic` models for all of Telegram API objects.
 * Declarative protocols (both sync and async) for Telegram API methods.

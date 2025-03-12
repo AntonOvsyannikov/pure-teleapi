@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pure-teleapi"
-version = "1.7.4"
+version = "1.8.3"
 description = "Pure declarative Telegram Bot API and implementation with pydantic models and sync and async API Protocol."
 authors = ["Anton Ovsyannikov <anton.ovsyannikov@gmail.com>"]
 license = "MIT"
