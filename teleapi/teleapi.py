@@ -83,6 +83,10 @@ class Update(BaseModel):
     """ Optional. New incoming pre-checkout query. Contains full information
     about checkout """
 
+    purchased_paid_media: Optional['PaidMediaPurchased'] = None
+    """ Optional. A user purchased paid media with a non-empty payload sent by
+    the bot in a non-channel chat """
+
     poll: Optional['Poll'] = None
     """ Optional. New poll state. Bots receive only updates about manually
     stopped polls and polls, which are sent by the bot """
@@ -203,6 +207,9 @@ class User(BaseModel):
     can_connect_to_business: Optional[bool] = None
     """ Optional. True, if the bot can be connected to a Telegram Business
     account to receive its messages. Returned only in getMe. """
+
+    has_main_web_app: Optional[bool] = None
+    """ Optional. True, if the bot has a main Web App. Returned only in getMe. """
 
 
 class Chat(BaseModel):
@@ -361,6 +368,13 @@ class ChatFullInfo(BaseModel):
     permissions: Optional['ChatPermissions'] = None
     """ Optional. Default chat member permissions, for groups and supergroups """
 
+    can_send_gift: Optional[bool] = None
+    """ Optional. True, if gifts can be sent to the chat """
+
+    can_send_paid_media: Optional[bool] = None
+    """ Optional. True, if paid media messages can be sent or forwarded to the
+    channel chat. The field is available only for channel chats. """
+
     slow_mode_delay: Optional[int] = None
     """ Optional. For supergroups, the minimum allowed delay between
     consecutive messages sent by each unprivileged user; in seconds """
@@ -421,7 +435,11 @@ class Message(BaseModel):
     """
 
     message_id: int
-    """ Unique message identifier inside this chat """
+    """ Unique message identifier inside this chat. In specific instances
+    (e.g., message containing a video sent to a big chat), the server
+    might automatically schedule a message instead of sending it
+    immediately. In such cases, this field will be 0 and the relevant
+    message will be unusable until it is actually sent """
 
     date: int
     """ Date the message was sent in Unix time. It is always a positive
@@ -435,17 +453,18 @@ class Message(BaseModel):
     belongs; for supergroups only """
 
     from_: Optional['User'] = Field(None, alias="from")
-    """ Optional. Sender of the message; empty for messages sent to channels.
-    For backward compatibility, the field contains a fake sender user in
-    non-channel chats, if the message was sent on behalf of a chat. """
+    """ Optional. Sender of the message; may be empty for messages sent to
+    channels. For backward compatibility, if the message was sent on
+    behalf of a chat, the field contains a fake sender user in non-channel
+    chats """
 
     sender_chat: Optional['Chat'] = None
-    """ Optional. Sender of the message, sent on behalf of a chat. For
-    example, the channel itself for channel posts, the supergroup itself
-    for messages from anonymous group administrators, the linked channel
-    for messages automatically forwarded to the discussion group. For
-    backward compatibility, the field from contains a fake sender user in
-    non-channel chats, if the message was sent on behalf of a chat. """
+    """ Optional. Sender of the message when sent on behalf of a chat. For
+    example, the supergroup itself for messages sent by its anonymous
+    administrators or a linked channel for messages automatically
+    forwarded to the channel's discussion group. For backward
+    compatibility, if the message was sent on behalf of a chat, the field
+    from contains a fake sender user in non-channel chats. """
 
     sender_boost_count: Optional[int] = None
     """ Optional. If the sender of the message boosted the chat, the number of
@@ -536,6 +555,10 @@ class Message(BaseModel):
     document: Optional['Document'] = None
     """ Optional. Message is a general file, information about the file """
 
+    paid_media: Optional['PaidMediaInfo'] = None
+    """ Optional. Message contains paid media; information about the paid
+    media """
+
     photo: Optional[List['PhotoSize']] = None
     """ Optional. Message is a photo, available sizes of the photo """
 
@@ -555,8 +578,8 @@ class Message(BaseModel):
     """ Optional. Message is a voice message, information about the file """
 
     caption: Optional[str] = None
-    """ Optional. Caption for the animation, audio, document, photo, video or
-    voice """
+    """ Optional. Caption for the animation, audio, document, paid media,
+    photo, video or voice """
 
     caption_entities: Optional[List['MessageEntity']] = None
     """ Optional. For messages with a caption, special entities like
@@ -656,6 +679,10 @@ class Message(BaseModel):
     """ Optional. Message is a service message about a successful payment,
     information about the payment. More about payments » """
 
+    refunded_payment: Optional['RefundedPayment'] = None
+    """ Optional. Message is a service message about a refunded payment,
+    information about the payment. More about payments » """
+
     users_shared: Optional['UsersShared'] = None
     """ Optional. Service message: users were shared with the bot """
 
@@ -742,7 +769,11 @@ class MessageId(BaseModel):
     """
 
     message_id: int
-    """ Unique message identifier """
+    """ Unique message identifier. In specific instances (e.g., message
+    containing a video sent to a big chat), the server might automatically
+    schedule a message instead of sending it immediately. In such cases,
+    this field will be 0 and the relevant message will be unusable until
+    it is actually sent """
 
 
 class InaccessibleMessage(BaseModel):
@@ -770,7 +801,8 @@ class MessageEntity(BaseModel):
 
     type: str
     """ Type of the entity. Currently, can be “mention” (@username), “hashtag”
-    (#hashtag), “cashtag” ($USD), “bot_command” (/start@jobs_bot), “url”
+    (#hashtag or #hashtag@chatusername), “cashtag” ($USD or
+    $USD@chatusername), “bot_command” (/start@jobs_bot), “url”
     (https://telegram.org), “email” (do-not-reply@telegram.org),
     “phone_number” (+1-212-555-0123), “bold” (bold text), “italic” (italic
     text), “underline” (underlined text), “strikethrough” (strikethrough
@@ -855,6 +887,10 @@ class ExternalReplyInfo(BaseModel):
 
     document: Optional['Document'] = None
     """ Optional. Message is a general file, information about the file """
+
+    paid_media: Optional['PaidMediaInfo'] = None
+    """ Optional. Message contains paid media; information about the paid
+    media """
 
     photo: Optional[List['PhotoSize']] = None
     """ Optional. Message is a photo, available sizes of the photo """
@@ -1061,22 +1097,22 @@ class Animation(BaseModel):
     file. """
 
     width: int
-    """ Video width as defined by sender """
+    """ Video width as defined by the sender """
 
     height: int
-    """ Video height as defined by sender """
+    """ Video height as defined by the sender """
 
     duration: int
-    """ Duration of the video in seconds as defined by sender """
+    """ Duration of the video in seconds as defined by the sender """
 
     thumbnail: Optional['PhotoSize'] = None
-    """ Optional. Animation thumbnail as defined by sender """
+    """ Optional. Animation thumbnail as defined by the sender """
 
     file_name: Optional[str] = None
-    """ Optional. Original animation filename as defined by sender """
+    """ Optional. Original animation filename as defined by the sender """
 
     mime_type: Optional[str] = None
-    """ Optional. MIME type of the file as defined by sender """
+    """ Optional. MIME type of the file as defined by the sender """
 
     file_size: Optional[int] = None
     """ Optional. File size in bytes. It can be bigger than 2^31 and some
@@ -1102,19 +1138,20 @@ class Audio(BaseModel):
     file. """
 
     duration: int
-    """ Duration of the audio in seconds as defined by sender """
+    """ Duration of the audio in seconds as defined by the sender """
 
     performer: Optional[str] = None
-    """ Optional. Performer of the audio as defined by sender or by audio tags """
+    """ Optional. Performer of the audio as defined by the sender or by audio
+    tags """
 
     title: Optional[str] = None
-    """ Optional. Title of the audio as defined by sender or by audio tags """
+    """ Optional. Title of the audio as defined by the sender or by audio tags """
 
     file_name: Optional[str] = None
-    """ Optional. Original filename as defined by sender """
+    """ Optional. Original filename as defined by the sender """
 
     mime_type: Optional[str] = None
-    """ Optional. MIME type of the file as defined by sender """
+    """ Optional. MIME type of the file as defined by the sender """
 
     file_size: Optional[int] = None
     """ Optional. File size in bytes. It can be bigger than 2^31 and some
@@ -1143,13 +1180,13 @@ class Document(BaseModel):
     file. """
 
     thumbnail: Optional['PhotoSize'] = None
-    """ Optional. Document thumbnail as defined by sender """
+    """ Optional. Document thumbnail as defined by the sender """
 
     file_name: Optional[str] = None
-    """ Optional. Original filename as defined by sender """
+    """ Optional. Original filename as defined by the sender """
 
     mime_type: Optional[str] = None
-    """ Optional. MIME type of the file as defined by sender """
+    """ Optional. MIME type of the file as defined by the sender """
 
     file_size: Optional[int] = None
     """ Optional. File size in bytes. It can be bigger than 2^31 and some
@@ -1186,22 +1223,29 @@ class Video(BaseModel):
     file. """
 
     width: int
-    """ Video width as defined by sender """
+    """ Video width as defined by the sender """
 
     height: int
-    """ Video height as defined by sender """
+    """ Video height as defined by the sender """
 
     duration: int
-    """ Duration of the video in seconds as defined by sender """
+    """ Duration of the video in seconds as defined by the sender """
 
     thumbnail: Optional['PhotoSize'] = None
     """ Optional. Video thumbnail """
 
+    cover: Optional[List['PhotoSize']] = None
+    """ Optional. Available sizes of the cover of the video in the message """
+
+    start_timestamp: Optional[int] = None
+    """ Optional. Timestamp in seconds from which the video will play in the
+    message """
+
     file_name: Optional[str] = None
-    """ Optional. Original filename as defined by sender """
+    """ Optional. Original filename as defined by the sender """
 
     mime_type: Optional[str] = None
-    """ Optional. MIME type of the file as defined by sender """
+    """ Optional. MIME type of the file as defined by the sender """
 
     file_size: Optional[int] = None
     """ Optional. File size in bytes. It can be bigger than 2^31 and some
@@ -1228,10 +1272,10 @@ class VideoNote(BaseModel):
 
     length: int
     """ Video width and height (diameter of the video message) as defined by
-    sender """
+    the sender """
 
     duration: int
-    """ Duration of the video in seconds as defined by sender """
+    """ Duration of the video in seconds as defined by the sender """
 
     thumbnail: Optional['PhotoSize'] = None
     """ Optional. Video thumbnail """
@@ -1255,10 +1299,10 @@ class Voice(BaseModel):
     file. """
 
     duration: int
-    """ Duration of the audio in seconds as defined by sender """
+    """ Duration of the audio in seconds as defined by the sender """
 
     mime_type: Optional[str] = None
-    """ Optional. MIME type of the file as defined by sender """
+    """ Optional. MIME type of the file as defined by the sender """
 
     file_size: Optional[int] = None
     """ Optional. File size in bytes. It can be bigger than 2^31 and some
@@ -1266,6 +1310,61 @@ class Voice(BaseModel):
     interpreting it. But it has at most 52 significant bits, so a signed
     64-bit integer or double-precision float type are safe for storing
     this value. """
+
+
+class PaidMediaInfo(BaseModel):
+    """
+    Describes the paid media added to a message.
+    """
+
+    star_count: int
+    """ The number of Telegram Stars that must be paid to buy access to the
+    media """
+
+    paid_media: List['PaidMedia']
+    """ Information about the paid media """
+
+
+class PaidMediaPreview(BaseModel):
+    """
+    The paid media isn't available before the payment.
+    """
+
+    type: str
+    """ Type of the paid media, always “preview” """
+
+    width: Optional[int] = None
+    """ Optional. Media width as defined by the sender """
+
+    height: Optional[int] = None
+    """ Optional. Media height as defined by the sender """
+
+    duration: Optional[int] = None
+    """ Optional. Duration of the media in seconds as defined by the sender """
+
+
+class PaidMediaPhoto(BaseModel):
+    """
+    The paid media is a photo.
+    """
+
+    type: str
+    """ Type of the paid media, always “photo” """
+
+    photo: List['PhotoSize']
+    """ The photo """
+
+
+class PaidMediaVideo(BaseModel):
+    """
+    The paid media is a video.
+    """
+
+    type: str
+    """ Type of the paid media, always “video” """
+
+    video: 'Video'
+    """ The video """
 
 
 class Contact(BaseModel):
@@ -1325,7 +1424,7 @@ class PollOption(BaseModel):
 class InputPollOption(BaseModel):
     """
     This object contains information about one answer option in a poll to
-    send.
+    be sent.
     """
 
     text: str
@@ -1423,10 +1522,10 @@ class Location(BaseModel):
     """
 
     latitude: float
-    """ Latitude as defined by sender """
+    """ Latitude as defined by the sender """
 
     longitude: float
-    """ Longitude as defined by sender """
+    """ Longitude as defined by the sender """
 
     horizontal_accuracy: Optional[float] = None
     """ Optional. The radius of uncertainty for the location, measured in
@@ -1607,7 +1706,7 @@ class BackgroundTypeWallpaper(BaseModel):
 
 class BackgroundTypePattern(BaseModel):
     """
-    The background is a PNG or TGV (gzipped subset of SVG with MIME type
+    The background is a .PNG or .TGV (gzipped subset of SVG with MIME type
     “application/x-tgwallpattern”) pattern to be combined with the
     background fill chosen by the user.
     """
@@ -1854,9 +1953,12 @@ class VideoChatParticipantsInvited(BaseModel):
 class GiveawayCreated(BaseModel):
     """
     This object represents a service message about the creation of a
-    scheduled giveaway. Currently holds no information.
+    scheduled giveaway.
     """
-    pass
+
+    prize_star_count: Optional[int] = None
+    """ Optional. The number of Telegram Stars to be split between giveaway
+    winners; for Telegram Star giveaways only """
 
 
 class Giveaway(BaseModel):
@@ -1894,9 +1996,14 @@ class Giveaway(BaseModel):
     Users with a phone number that was bought on Fragment can always
     participate in giveaways. """
 
+    prize_star_count: Optional[int] = None
+    """ Optional. The number of Telegram Stars to be split between giveaway
+    winners; for Telegram Star giveaways only """
+
     premium_subscription_month_count: Optional[int] = None
     """ Optional. The number of months the Telegram Premium subscription won
-    from the giveaway will be active for """
+    from the giveaway will be active for; for Telegram Premium giveaways
+    only """
 
 
 class GiveawayWinners(BaseModel):
@@ -1925,9 +2032,14 @@ class GiveawayWinners(BaseModel):
     """ Optional. The number of other chats the user had to join in order to
     be eligible for the giveaway """
 
+    prize_star_count: Optional[int] = None
+    """ Optional. The number of Telegram Stars that were split between
+    giveaway winners; for Telegram Star giveaways only """
+
     premium_subscription_month_count: Optional[int] = None
     """ Optional. The number of months the Telegram Premium subscription won
-    from the giveaway will be active for """
+    from the giveaway will be active for; for Telegram Premium giveaways
+    only """
 
     unclaimed_prize_count: Optional[int] = None
     """ Optional. Number of undistributed prizes """
@@ -1959,6 +2071,10 @@ class GiveawayCompleted(BaseModel):
     giveaway_message: Optional['Message'] = None
     """ Optional. Message with the giveaway that was completed, if it wasn't
     deleted """
+
+    is_star_giveaway: Optional[bool] = None
+    """ Optional. True, if the giveaway is a Telegram Star giveaway.
+    Otherwise, currently, the giveaway is a Telegram Premium giveaway. """
 
 
 class LinkPreviewOptions(BaseModel):
@@ -2282,9 +2398,8 @@ class InlineKeyboardButton(BaseModel):
     privacy settings. """
 
     callback_data: Optional[str] = None
-    """ Optional. Data to be sent in a callback query to the bot when button
-    is pressed, 1-64 bytes. Not supported for messages sent on behalf of a
-    Telegram Business account. """
+    """ Optional. Data to be sent in a callback query to the bot when the
+    button is pressed, 1-64 bytes """
 
     web_app: Optional['WebAppInfo'] = None
     """ Optional. Description of the Web App that will be launched when the
@@ -2319,6 +2434,10 @@ class InlineKeyboardButton(BaseModel):
     the bot's username and the specified inline query in the input field.
     Not supported for messages sent on behalf of a Telegram Business
     account. """
+
+    copy_text: Optional['CopyTextButton'] = None
+    """ Optional. Description of the button that copies the specified text to
+    the clipboard. """
 
     callback_game: Optional['CallbackGame'] = None
     """ Optional. Description of the game that will be launched when the user
@@ -2389,6 +2508,16 @@ class SwitchInlineQueryChosenChat(BaseModel):
     """ Optional. True, if channel chats can be chosen """
 
 
+class CopyTextButton(BaseModel):
+    """
+    This object represents an inline keyboard button that copies specified
+    text to the clipboard.
+    """
+
+    text: str
+    """ The text to be copied to the clipboard; 1-256 characters """
+
+
 class CallbackQuery(BaseModel):
     """
     This object represents an incoming callback query from a callback
@@ -2402,7 +2531,7 @@ class CallbackQuery(BaseModel):
     id: str
     """ Unique identifier for this query """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ Sender """
 
     chat_instance: str
@@ -2516,6 +2645,15 @@ class ChatInviteLink(BaseModel):
     pending_join_request_count: Optional[int] = None
     """ Optional. Number of pending join requests created using this link """
 
+    subscription_period: Optional[int] = None
+    """ Optional. The number of seconds the subscription will be active for
+    before the next payment """
+
+    subscription_price: Optional[int] = None
+    """ Optional. The amount of Telegram Stars a user must pay initially and
+    after each subsequent subscription period to be a member of the chat
+    using the link """
+
 
 class ChatAdministratorRights(BaseModel):
     """
@@ -2589,7 +2727,7 @@ class ChatMemberUpdated(BaseModel):
     chat: 'Chat'
     """ Chat the user belongs to """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ Performer of the action, which resulted in the change """
 
     date: int
@@ -2723,6 +2861,9 @@ class ChatMemberMember(BaseModel):
     user: 'User'
     """ Information about the user """
 
+    until_date: Optional[int] = None
+    """ Optional. Date when the user's subscription will expire; Unix time """
+
 
 class ChatMemberRestricted(BaseModel):
     """
@@ -2828,7 +2969,7 @@ class ChatJoinRequest(BaseModel):
     chat: 'Chat'
     """ Chat to which the request was sent """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ User that sent the join request """
 
     user_chat_id: int
@@ -3021,6 +3162,15 @@ class ReactionTypeCustomEmoji(BaseModel):
 
     custom_emoji_id: str
     """ Custom emoji identifier """
+
+
+class ReactionTypePaid(BaseModel):
+    """
+    The reaction is paid.
+    """
+
+    type: str
+    """ Type of the reaction, always “paid” """
 
 
 class ReactionCount(BaseModel):
@@ -3250,7 +3400,10 @@ class MenuButtonWebApp(BaseModel):
     web_app: 'WebAppInfo'
     """ Description of the Web App that will be launched when the user presses
     the button. The Web App will be able to send an arbitrary message on
-    behalf of the user using the method answerWebAppQuery. """
+    behalf of the user using the method answerWebAppQuery. Alternatively,
+    a t.me link to a Web App of the bot can be specified in the object
+    instead of the Web App's URL, in which case the Web App will be opened
+    as if the user pressed the link. """
 
 
 class MenuButtonDefault(BaseModel):
@@ -3291,9 +3444,11 @@ class ChatBoostSourceGiftCode(BaseModel):
 
 class ChatBoostSourceGiveaway(BaseModel):
     """
-    The boost was obtained by the creation of a Telegram Premium giveaway.
-    This boosts the chat 4 times for the duration of the corresponding
-    Telegram Premium subscription.
+    The boost was obtained by the creation of a Telegram Premium or a
+    Telegram Star giveaway. This boosts the chat 4 times for the duration
+    of the corresponding Telegram Premium subscription for Telegram
+    Premium giveaways and prize_star_count / 500 times for one year for
+    Telegram Star giveaways.
     """
 
     source: str
@@ -3305,7 +3460,12 @@ class ChatBoostSourceGiveaway(BaseModel):
     yet. """
 
     user: Optional['User'] = None
-    """ Optional. User that won the prize in the giveaway if any """
+    """ Optional. User that won the prize in the giveaway if any; for Telegram
+    Premium giveaways only """
+
+    prize_star_count: Optional[int] = None
+    """ Optional. The number of Telegram Stars to be split between giveaway
+    winners; for Telegram Star giveaways only """
 
     is_unclaimed: Optional[bool] = None
     """ Optional. True, if the giveaway was completed, but there was no user
@@ -3488,7 +3648,7 @@ class InputMediaVideo(BaseModel):
     upload a new one using multipart/form-data under <file_attach_name>
     name. More information on Sending Files » """
 
-    thumbnail: Optional[Union['InputFile', str]] = None
+    thumbnail: Optional[str] = None
     """ Optional. Thumbnail of the file sent; can be ignored if thumbnail
     generation for the file is supported server-side. The thumbnail should
     be in JPEG format and less than 200 kB in size. A thumbnail's width
@@ -3497,6 +3657,17 @@ class InputMediaVideo(BaseModel):
     uploaded as a new file, so you can pass “attach://<file_attach_name>”
     if the thumbnail was uploaded using multipart/form-data under
     <file_attach_name>. More information on Sending Files » """
+
+    cover: Optional[str] = None
+    """ Optional. Cover for the video in the message. Pass a file_id to send a
+    file that exists on the Telegram servers (recommended), pass an HTTP
+    URL for Telegram to get a file from the Internet, or pass
+    “attach://<file_attach_name>” to upload a new one using
+    multipart/form-data under <file_attach_name> name. More information on
+    Sending Files » """
+
+    start_timestamp: Optional[int] = None
+    """ Optional. Start timestamp for the video in the message """
 
     caption: Optional[str] = None
     """ Optional. Caption of the video to be sent, 0-1024 characters after
@@ -3547,7 +3718,7 @@ class InputMediaAnimation(BaseModel):
     upload a new one using multipart/form-data under <file_attach_name>
     name. More information on Sending Files » """
 
-    thumbnail: Optional[Union['InputFile', str]] = None
+    thumbnail: Optional[str] = None
     """ Optional. Thumbnail of the file sent; can be ignored if thumbnail
     generation for the file is supported server-side. The thumbnail should
     be in JPEG format and less than 200 kB in size. A thumbnail's width
@@ -3602,7 +3773,7 @@ class InputMediaAudio(BaseModel):
     upload a new one using multipart/form-data under <file_attach_name>
     name. More information on Sending Files » """
 
-    thumbnail: Optional[Union['InputFile', str]] = None
+    thumbnail: Optional[str] = None
     """ Optional. Thumbnail of the file sent; can be ignored if thumbnail
     generation for the file is supported server-side. The thumbnail should
     be in JPEG format and less than 200 kB in size. A thumbnail's width
@@ -3649,7 +3820,7 @@ class InputMediaDocument(BaseModel):
     upload a new one using multipart/form-data under <file_attach_name>
     name. More information on Sending Files » """
 
-    thumbnail: Optional[Union['InputFile', str]] = None
+    thumbnail: Optional[str] = None
     """ Optional. Thumbnail of the file sent; can be ignored if thumbnail
     generation for the file is supported server-side. The thumbnail should
     be in JPEG format and less than 200 kB in size. A thumbnail's width
@@ -3675,6 +3846,71 @@ class InputMediaDocument(BaseModel):
     """ Optional. Disables automatic server-side content type detection for
     files uploaded using multipart/form-data. Always True, if the document
     is sent as part of an album. """
+
+
+class InputPaidMediaPhoto(BaseModel):
+    """
+    The paid media to send is a photo.
+    """
+
+    type: str
+    """ Type of the media, must be photo """
+
+    media: str
+    """ File to send. Pass a file_id to send a file that exists on the
+    Telegram servers (recommended), pass an HTTP URL for Telegram to get a
+    file from the Internet, or pass “attach://<file_attach_name>” to
+    upload a new one using multipart/form-data under <file_attach_name>
+    name. More information on Sending Files » """
+
+
+class InputPaidMediaVideo(BaseModel):
+    """
+    The paid media to send is a video.
+    """
+
+    type: str
+    """ Type of the media, must be video """
+
+    media: str
+    """ File to send. Pass a file_id to send a file that exists on the
+    Telegram servers (recommended), pass an HTTP URL for Telegram to get a
+    file from the Internet, or pass “attach://<file_attach_name>” to
+    upload a new one using multipart/form-data under <file_attach_name>
+    name. More information on Sending Files » """
+
+    thumbnail: Optional[str] = None
+    """ Optional. Thumbnail of the file sent; can be ignored if thumbnail
+    generation for the file is supported server-side. The thumbnail should
+    be in JPEG format and less than 200 kB in size. A thumbnail's width
+    and height should not exceed 320. Ignored if the file is not uploaded
+    using multipart/form-data. Thumbnails can't be reused and can be only
+    uploaded as a new file, so you can pass “attach://<file_attach_name>”
+    if the thumbnail was uploaded using multipart/form-data under
+    <file_attach_name>. More information on Sending Files » """
+
+    cover: Optional[str] = None
+    """ Optional. Cover for the video in the message. Pass a file_id to send a
+    file that exists on the Telegram servers (recommended), pass an HTTP
+    URL for Telegram to get a file from the Internet, or pass
+    “attach://<file_attach_name>” to upload a new one using
+    multipart/form-data under <file_attach_name> name. More information on
+    Sending Files » """
+
+    start_timestamp: Optional[int] = None
+    """ Optional. Start timestamp for the video in the message """
+
+    width: Optional[int] = None
+    """ Optional. Video width """
+
+    height: Optional[int] = None
+    """ Optional. Video height """
+
+    duration: Optional[int] = None
+    """ Optional. Video duration in seconds """
+
+    supports_streaming: Optional[bool] = None
+    """ Optional. Pass True if the uploaded video is suitable for streaming """
 
 
 class Sticker(BaseModel):
@@ -3801,7 +4037,7 @@ class InputSticker(BaseModel):
 
     format: str
     """ Format of the added sticker, must be one of “static” for a .WEBP or
-    .PNG image, “animated” for a .TGS animation, “video” for a WEBM video """
+    .PNG image, “animated” for a .TGS animation, “video” for a .WEBM video """
 
     emoji_list: List[str]
     """ List of 1-20 emoji associated with the sticker """
@@ -3816,6 +4052,42 @@ class InputSticker(BaseModel):
     stickers only. """
 
 
+class Gift(BaseModel):
+    """
+    This object represents a gift that can be sent by the bot.
+    """
+
+    id: str
+    """ Unique identifier of the gift """
+
+    sticker: 'Sticker'
+    """ The sticker that represents the gift """
+
+    star_count: int
+    """ The number of Telegram Stars that must be paid to send the sticker """
+
+    upgrade_star_count: Optional[int] = None
+    """ Optional. The number of Telegram Stars that must be paid to upgrade
+    the gift to a unique one """
+
+    total_count: Optional[int] = None
+    """ Optional. The total number of the gifts of this type that can be sent;
+    for limited gifts only """
+
+    remaining_count: Optional[int] = None
+    """ Optional. The number of remaining gifts of this type that can be sent;
+    for limited gifts only """
+
+
+class Gifts(BaseModel):
+    """
+    This object represent a list of gifts.
+    """
+
+    gifts: List['Gift']
+    """ The list of gifts """
+
+
 class InlineQuery(BaseModel):
     """
     This object represents an incoming inline query. When the user sends
@@ -3826,7 +4098,7 @@ class InlineQuery(BaseModel):
     id: str
     """ Unique identifier for this query """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ Sender """
 
     query: str
@@ -3896,10 +4168,6 @@ class InlineQueryResultArticle(BaseModel):
 
     url: Optional[str] = None
     """ Optional. URL of the result """
-
-    hide_url: Optional[bool] = None
-    """ Optional. Pass True if you don't want the URL to be shown in the
-    message """
 
     description: Optional[str] = None
     """ Optional. Short description of the result """
@@ -3985,7 +4253,7 @@ class InlineQueryResultGif(BaseModel):
     """ Unique identifier for this result, 1-64 bytes """
 
     gif_url: str
-    """ A valid URL for the GIF file. File size must not exceed 1MB """
+    """ A valid URL for the GIF file """
 
     thumbnail_url: str
     """ URL of the static (JPEG or GIF) or animated (MPEG4) thumbnail for the
@@ -4047,7 +4315,7 @@ class InlineQueryResultMpeg4Gif(BaseModel):
     """ Unique identifier for this result, 1-64 bytes """
 
     mpeg4_url: str
-    """ A valid URL for the MPEG4 file. File size must not exceed 1MB """
+    """ A valid URL for the MPEG4 file """
 
     thumbnail_url: str
     """ URL of the static (JPEG or GIF) or animated (MPEG4) thumbnail for the
@@ -4911,7 +5179,7 @@ class InputInvoiceMessageContent(BaseModel):
 
     payload: str
     """ Bot-defined invoice payload, 1-128 bytes. This will not be displayed
-    to the user, use for your internal processes. """
+    to the user, use it for your internal processes. """
 
     currency: str
     """ Three-letter ISO 4217 currency code, see more on currencies. Pass
@@ -4997,7 +5265,7 @@ class ChosenInlineResult(BaseModel):
     result_id: str
     """ The unique identifier for the result that was chosen """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ The user that chose the result """
 
     query: str
@@ -5020,6 +5288,19 @@ class SentWebAppMessage(BaseModel):
     inline_message_id: Optional[str] = None
     """ Optional. Identifier of the sent inline message. Available only if
     there is an inline keyboard attached to the message. """
+
+
+class PreparedInlineMessage(BaseModel):
+    """
+    Describes an inline message to be sent by a user of a Mini App.
+    """
+
+    id: str
+    """ Unique identifier of the prepared message """
+
+    expiration_date: int
+    """ Expiration date of the prepared message, in Unix time. Expired
+    prepared messages can no longer be used """
 
 
 class LabeledPrice(BaseModel):
@@ -5125,6 +5406,9 @@ class ShippingOption(BaseModel):
 class SuccessfulPayment(BaseModel):
     """
     This object contains basic information about a successful payment.
+    Note that if the buyer initiates a chargeback with the relevant
+    payment provider following this transaction, the funds may be debited
+    from your balance. This is outside of Telegram's control.
     """
 
     currency: str
@@ -5139,7 +5423,7 @@ class SuccessfulPayment(BaseModel):
     currencies). """
 
     invoice_payload: str
-    """ Bot specified invoice payload """
+    """ Bot-specified invoice payload """
 
     telegram_payment_charge_id: str
     """ Telegram payment identifier """
@@ -5147,11 +5431,48 @@ class SuccessfulPayment(BaseModel):
     provider_payment_charge_id: str
     """ Provider payment identifier """
 
+    subscription_expiration_date: Optional[int] = None
+    """ Optional. Expiration date of the subscription, in Unix time; for
+    recurring payments only """
+
+    is_recurring: Optional[bool] = None
+    """ Optional. True, if the payment is a recurring payment for a
+    subscription """
+
+    is_first_recurring: Optional[bool] = None
+    """ Optional. True, if the payment is the first payment for a subscription """
+
     shipping_option_id: Optional[str] = None
     """ Optional. Identifier of the shipping option chosen by the user """
 
     order_info: Optional['OrderInfo'] = None
     """ Optional. Order information provided by the user """
+
+
+class RefundedPayment(BaseModel):
+    """
+    This object contains basic information about a refunded payment.
+    """
+
+    currency: str
+    """ Three-letter ISO 4217 currency code, or “XTR” for payments in Telegram
+    Stars. Currently, always “XTR” """
+
+    total_amount: int
+    """ Total refunded price in the smallest units of the currency (integer,
+    not float/double). For example, for a price of US$ 1.45, total_amount
+    = 145. See the exp parameter in currencies.json, it shows the number
+    of digits past the decimal point for each currency (2 for the majority
+    of currencies). """
+
+    invoice_payload: str
+    """ Bot-specified invoice payload """
+
+    telegram_payment_charge_id: str
+    """ Telegram payment identifier """
+
+    provider_payment_charge_id: Optional[str] = None
+    """ Optional. Provider payment identifier """
 
 
 class ShippingQuery(BaseModel):
@@ -5162,11 +5483,11 @@ class ShippingQuery(BaseModel):
     id: str
     """ Unique query identifier """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ User who sent the query """
 
     invoice_payload: str
-    """ Bot specified invoice payload """
+    """ Bot-specified invoice payload """
 
     shipping_address: 'ShippingAddress'
     """ User specified shipping address """
@@ -5180,7 +5501,7 @@ class PreCheckoutQuery(BaseModel):
     id: str
     """ Unique query identifier """
 
-    from_: 'User'
+    from_: 'User' = Field(alias="from")
     """ User who sent the query """
 
     currency: str
@@ -5195,13 +5516,239 @@ class PreCheckoutQuery(BaseModel):
     currencies). """
 
     invoice_payload: str
-    """ Bot specified invoice payload """
+    """ Bot-specified invoice payload """
 
     shipping_option_id: Optional[str] = None
     """ Optional. Identifier of the shipping option chosen by the user """
 
     order_info: Optional['OrderInfo'] = None
     """ Optional. Order information provided by the user """
+
+
+class PaidMediaPurchased(BaseModel):
+    """
+    This object contains information about a paid media purchase.
+    """
+
+    from_: 'User' = Field(alias="from")
+    """ User who purchased the media """
+
+    paid_media_payload: str
+    """ Bot-specified paid media payload """
+
+
+class RevenueWithdrawalStatePending(BaseModel):
+    """
+    The withdrawal is in progress.
+    """
+
+    type: str
+    """ Type of the state, always “pending” """
+
+
+class RevenueWithdrawalStateSucceeded(BaseModel):
+    """
+    The withdrawal succeeded.
+    """
+
+    type: str
+    """ Type of the state, always “succeeded” """
+
+    date: int
+    """ Date the withdrawal was completed in Unix time """
+
+    url: str
+    """ An HTTPS URL that can be used to see transaction details """
+
+
+class RevenueWithdrawalStateFailed(BaseModel):
+    """
+    The withdrawal failed and the transaction was refunded.
+    """
+
+    type: str
+    """ Type of the state, always “failed” """
+
+
+class AffiliateInfo(BaseModel):
+    """
+    Contains information about the affiliate that received a commission
+    via this transaction.
+    """
+
+    commission_per_mille: int
+    """ The number of Telegram Stars received by the affiliate for each 1000
+    Telegram Stars received by the bot from referred users """
+
+    amount: int
+    """ Integer amount of Telegram Stars received by the affiliate from the
+    transaction, rounded to 0; can be negative for refunds """
+
+    affiliate_user: Optional['User'] = None
+    """ Optional. The bot or the user that received an affiliate commission if
+    it was received by a bot or a user """
+
+    affiliate_chat: Optional['Chat'] = None
+    """ Optional. The chat that received an affiliate commission if it was
+    received by a chat """
+
+    nanostar_amount: Optional[int] = None
+    """ Optional. The number of 1/1000000000 shares of Telegram Stars received
+    by the affiliate; from -999999999 to 999999999; can be negative for
+    refunds """
+
+
+class TransactionPartnerUser(BaseModel):
+    """
+    Describes a transaction with a user.
+    """
+
+    type: str
+    """ Type of the transaction partner, always “user” """
+
+    user: 'User'
+    """ Information about the user """
+
+    affiliate: Optional['AffiliateInfo'] = None
+    """ Optional. Information about the affiliate that received a commission
+    via this transaction """
+
+    invoice_payload: Optional[str] = None
+    """ Optional. Bot-specified invoice payload """
+
+    subscription_period: Optional[int] = None
+    """ Optional. The duration of the paid subscription """
+
+    paid_media: Optional[List['PaidMedia']] = None
+    """ Optional. Information about the paid media bought by the user """
+
+    paid_media_payload: Optional[str] = None
+    """ Optional. Bot-specified paid media payload """
+
+    gift: Optional['Gift'] = None
+    """ Optional. The gift sent to the user by the bot """
+
+
+class TransactionPartnerChat(BaseModel):
+    """
+    Describes a transaction with a chat.
+    """
+
+    type: str
+    """ Type of the transaction partner, always “chat” """
+
+    chat: 'Chat'
+    """ Information about the chat """
+
+    gift: Optional['Gift'] = None
+    """ Optional. The gift sent to the chat by the bot """
+
+
+class TransactionPartnerAffiliateProgram(BaseModel):
+    """
+    Describes the affiliate program that issued the affiliate commission
+    received via this transaction.
+    """
+
+    type: str
+    """ Type of the transaction partner, always “affiliate_program” """
+
+    commission_per_mille: int
+    """ The number of Telegram Stars received by the bot for each 1000
+    Telegram Stars received by the affiliate program sponsor from referred
+    users """
+
+    sponsor_user: Optional['User'] = None
+    """ Optional. Information about the bot that sponsored the affiliate
+    program """
+
+
+class TransactionPartnerFragment(BaseModel):
+    """
+    Describes a withdrawal transaction with Fragment.
+    """
+
+    type: str
+    """ Type of the transaction partner, always “fragment” """
+
+    withdrawal_state: Optional['RevenueWithdrawalState'] = None
+    """ Optional. State of the transaction if the transaction is outgoing """
+
+
+class TransactionPartnerTelegramAds(BaseModel):
+    """
+    Describes a withdrawal transaction to the Telegram Ads platform.
+    """
+
+    type: str
+    """ Type of the transaction partner, always “telegram_ads” """
+
+
+class TransactionPartnerTelegramApi(BaseModel):
+    """
+    Describes a transaction with payment for paid broadcasting.
+    """
+
+    type: str
+    """ Type of the transaction partner, always “telegram_api” """
+
+    request_count: int
+    """ The number of successful requests that exceeded regular limits and
+    were therefore billed """
+
+
+class TransactionPartnerOther(BaseModel):
+    """
+    Describes a transaction with an unknown source or recipient.
+    """
+
+    type: str
+    """ Type of the transaction partner, always “other” """
+
+
+class StarTransaction(BaseModel):
+    """
+    Describes a Telegram Star transaction. Note that if the buyer
+    initiates a chargeback with the payment provider from whom they
+    acquired Stars (e.g., Apple, Google) following this transaction, the
+    refunded Stars will be deducted from the bot's balance. This is
+    outside of Telegram's control.
+    """
+
+    id: str
+    """ Unique identifier of the transaction. Coincides with the identifier of
+    the original transaction for refund transactions. Coincides with
+    SuccessfulPayment.telegram_payment_charge_id for successful incoming
+    payments from users. """
+
+    amount: int
+    """ Integer amount of Telegram Stars transferred by the transaction """
+
+    date: int
+    """ Date the transaction was created in Unix time """
+
+    nanostar_amount: Optional[int] = None
+    """ Optional. The number of 1/1000000000 shares of Telegram Stars
+    transferred by the transaction; from 0 to 999999999 """
+
+    source: Optional['TransactionPartner'] = None
+    """ Optional. Source of an incoming transaction (e.g., a user purchasing
+    goods or services, Fragment refunding a failed withdrawal). Only for
+    incoming transactions """
+
+    receiver: Optional['TransactionPartner'] = None
+    """ Optional. Receiver of an outgoing transaction (e.g., a user for a
+    purchase refund, Fragment for a withdrawal). Only for outgoing
+    transactions """
+
+
+class StarTransactions(BaseModel):
+    """
+    Contains a list of Telegram Star transactions.
+    """
+
+    transactions: List['StarTransaction']
+    """ The list of transactions """
 
 
 class PassportData(BaseModel):
@@ -5593,6 +6140,15 @@ MessageOrigin = Union[
 ]
 
 """
+This object describes paid media. Currently, it can be one of
+"""
+PaidMedia = Union[
+    PaidMediaPreview,
+    PaidMediaPhoto,
+    PaidMediaVideo,
+]
+
+"""
 This object describes the way a background is filled based on the
 selected colors. Currently, it can be one of
 """
@@ -5633,6 +6189,7 @@ of
 ReactionType = Union[
     ReactionTypeEmoji,
     ReactionTypeCustomEmoji,
+    ReactionTypePaid,
 ]
 
 """
@@ -5681,6 +6238,15 @@ InputMedia = Union[
 ]
 
 """
+This object describes the paid media to be sent. Currently, it can be
+one of
+"""
+InputPaidMedia = Union[
+    InputPaidMediaPhoto,
+    InputPaidMediaVideo,
+]
+
+"""
 This object represents one result of an inline query. Telegram clients
 currently support results of the following 20 types:
 """
@@ -5718,6 +6284,30 @@ InputMessageContent = Union[
     InputVenueMessageContent,
     InputContactMessageContent,
     InputInvoiceMessageContent,
+]
+
+"""
+This object describes the state of a revenue withdrawal operation.
+Currently, it can be one of
+"""
+RevenueWithdrawalState = Union[
+    RevenueWithdrawalStatePending,
+    RevenueWithdrawalStateSucceeded,
+    RevenueWithdrawalStateFailed,
+]
+
+"""
+This object describes the source of a transaction, or its recipient
+for outgoing transactions. Currently, it can be one of
+"""
+TransactionPartner = Union[
+    TransactionPartnerUser,
+    TransactionPartnerChat,
+    TransactionPartnerAffiliateProgram,
+    TransactionPartnerFragment,
+    TransactionPartnerTelegramAds,
+    TransactionPartnerTelegramApi,
+    TransactionPartnerOther,
 ]
 
 """
@@ -5787,6 +6377,14 @@ Video.update_forward_refs()
 VideoNote.update_forward_refs()
 
 Voice.update_forward_refs()
+
+PaidMediaInfo.update_forward_refs()
+
+PaidMediaPreview.update_forward_refs()
+
+PaidMediaPhoto.update_forward_refs()
+
+PaidMediaVideo.update_forward_refs()
 
 Contact.update_forward_refs()
 
@@ -5892,6 +6490,8 @@ LoginUrl.update_forward_refs()
 
 SwitchInlineQueryChosenChat.update_forward_refs()
 
+CopyTextButton.update_forward_refs()
+
 CallbackQuery.update_forward_refs()
 
 ForceReply.update_forward_refs()
@@ -5935,6 +6535,8 @@ ChatLocation.update_forward_refs()
 ReactionTypeEmoji.update_forward_refs()
 
 ReactionTypeCustomEmoji.update_forward_refs()
+
+ReactionTypePaid.update_forward_refs()
 
 ReactionCount.update_forward_refs()
 
@@ -6002,6 +6604,10 @@ InputMediaAudio.update_forward_refs()
 
 InputMediaDocument.update_forward_refs()
 
+InputPaidMediaPhoto.update_forward_refs()
+
+InputPaidMediaVideo.update_forward_refs()
+
 Sticker.update_forward_refs()
 
 StickerSet.update_forward_refs()
@@ -6009,6 +6615,10 @@ StickerSet.update_forward_refs()
 MaskPosition.update_forward_refs()
 
 InputSticker.update_forward_refs()
+
+Gift.update_forward_refs()
+
+Gifts.update_forward_refs()
 
 InlineQuery.update_forward_refs()
 
@@ -6068,6 +6678,8 @@ ChosenInlineResult.update_forward_refs()
 
 SentWebAppMessage.update_forward_refs()
 
+PreparedInlineMessage.update_forward_refs()
+
 LabeledPrice.update_forward_refs()
 
 Invoice.update_forward_refs()
@@ -6080,9 +6692,39 @@ ShippingOption.update_forward_refs()
 
 SuccessfulPayment.update_forward_refs()
 
+RefundedPayment.update_forward_refs()
+
 ShippingQuery.update_forward_refs()
 
 PreCheckoutQuery.update_forward_refs()
+
+PaidMediaPurchased.update_forward_refs()
+
+RevenueWithdrawalStatePending.update_forward_refs()
+
+RevenueWithdrawalStateSucceeded.update_forward_refs()
+
+RevenueWithdrawalStateFailed.update_forward_refs()
+
+AffiliateInfo.update_forward_refs()
+
+TransactionPartnerUser.update_forward_refs()
+
+TransactionPartnerChat.update_forward_refs()
+
+TransactionPartnerAffiliateProgram.update_forward_refs()
+
+TransactionPartnerFragment.update_forward_refs()
+
+TransactionPartnerTelegramAds.update_forward_refs()
+
+TransactionPartnerTelegramApi.update_forward_refs()
+
+TransactionPartnerOther.update_forward_refs()
+
+StarTransaction.update_forward_refs()
+
+StarTransactions.update_forward_refs()
 
 PassportData.update_forward_refs()
 
@@ -6149,8 +6791,8 @@ class Teleapi(Protocol):
             to receive all update types except chat_member, message_reaction, and
             message_reaction_count (default). If not specified, the previous
             setting will be used.Please note that this parameter doesn't affect
-            updates created before the call to the getUpdates, so unwanted updates
-            may be received for a short period of time.
+            updates created before the call to getUpdates, so unwanted updates may
+            be received for a short period of time.
         """
         pass
 
@@ -6169,8 +6811,10 @@ class Teleapi(Protocol):
         Use this method to specify a URL and receive incoming updates via an
         outgoing webhook. Whenever there is an update for the bot, we will
         send an HTTPS POST request to the specified URL, containing a JSON-
-        serialized Update. In case of an unsuccessful request, we will give up
-        after a reasonable amount of attempts. Returns True on success.
+        serialized Update. In case of an unsuccessful request (a request with
+        response HTTP status code different from 2XY), we will repeat the
+        request and give up after a reasonable amount of attempts. Returns
+        True on success.
         
         If you'd like to make sure that the webhook was set by you, you can
         specify secret data in the parameter secret_token. If specified, the
@@ -6276,6 +6920,7 @@ class Teleapi(Protocol):
             link_preview_options: Optional['LinkPreviewOptions'] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6300,6 +6945,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6316,6 +6964,7 @@ class Teleapi(Protocol):
             from_chat_id: Union[int, str],
             message_id: int,
             message_thread_id: Optional[int] = None,
+            video_start_timestamp: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
     ) -> 'Message':
@@ -6331,6 +6980,7 @@ class Teleapi(Protocol):
         :param message_id: Message identifier in the chat specified in from_chat_id
         :param message_thread_id: Unique identifier for the target message thread (topic) of the forum;
             for forum supergroups only
+        :param video_start_timestamp: New start timestamp for the forwarded video in the message
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the forwarded message from forwarding and
@@ -6378,23 +7028,25 @@ class Teleapi(Protocol):
             from_chat_id: Union[int, str],
             message_id: int,
             message_thread_id: Optional[int] = None,
+            video_start_timestamp: Optional[int] = None,
             caption: Optional[str] = None,
             parse_mode: Optional[str] = None,
             caption_entities: Optional[List['MessageEntity']] = None,
             show_caption_above_media: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
     ) -> 'MessageId':
         """
-        Use this method to copy messages of any kind. Service messages,
-        giveaway messages, giveaway winners messages, and invoice messages
-        can't be copied. A quiz poll can be copied only if the value of the
-        field correct_option_id is known to the bot. The method is analogous
-        to the method forwardMessage, but the copied message doesn't have a
-        link to the original message. Returns the MessageId of the sent
-        message on success.
+        Use this method to copy messages of any kind. Service messages, paid
+        media messages, giveaway messages, giveaway winners messages, and
+        invoice messages can't be copied. A quiz poll can be copied only if
+        the value of the field correct_option_id is known to the bot. The
+        method is analogous to the method forwardMessage, but the copied
+        message doesn't have a link to the original message. Returns the
+        MessageId of the sent message on success.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
@@ -6403,6 +7055,7 @@ class Teleapi(Protocol):
         :param message_id: Message identifier in the chat specified in from_chat_id
         :param message_thread_id: Unique identifier for the target message thread (topic) of the forum;
             for forum supergroups only
+        :param video_start_timestamp: New start timestamp for the copied video in the message
         :param caption: New caption for media, 0-1024 characters after entities parsing. If
             not specified, the original caption is kept
         :param parse_mode: Mode for parsing entities in the new caption. See formatting options
@@ -6414,6 +7067,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param reply_parameters: Description of the message to reply to
         :param reply_markup: Additional interface options. A JSON-serialized object for an inline
             keyboard, custom reply keyboard, instructions to remove a reply
@@ -6435,13 +7091,13 @@ class Teleapi(Protocol):
         """
         Use this method to copy messages of any kind. If some of the specified
         messages can't be found or copied, they are skipped. Service messages,
-        giveaway messages, giveaway winners messages, and invoice messages
-        can't be copied. A quiz poll can be copied only if the value of the
-        field correct_option_id is known to the bot. The method is analogous
-        to the method forwardMessages, but the copied messages don't have a
-        link to the original message. Album grouping is kept for copied
-        messages. On success, an array of MessageId of the sent messages is
-        returned.
+        paid media messages, giveaway messages, giveaway winners messages, and
+        invoice messages can't be copied. A quiz poll can be copied only if
+        the value of the field correct_option_id is known to the bot. The
+        method is analogous to the method forwardMessages, but the copied
+        messages don't have a link to the original message. Album grouping is
+        kept for copied messages. On success, an array of MessageId of the
+        sent messages is returned.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
@@ -6473,6 +7129,7 @@ class Teleapi(Protocol):
             has_spoiler: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6504,6 +7161,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6529,6 +7189,7 @@ class Teleapi(Protocol):
             thumbnail: Optional[Union['InputFile', str]] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6572,6 +7233,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6595,6 +7259,7 @@ class Teleapi(Protocol):
             disable_content_type_detection: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6633,6 +7298,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6653,6 +7321,8 @@ class Teleapi(Protocol):
             width: Optional[int] = None,
             height: Optional[int] = None,
             thumbnail: Optional[Union['InputFile', str]] = None,
+            cover: Optional[Union['InputFile', str]] = None,
+            start_timestamp: Optional[int] = None,
             caption: Optional[str] = None,
             parse_mode: Optional[str] = None,
             caption_entities: Optional[List['MessageEntity']] = None,
@@ -6661,6 +7331,7 @@ class Teleapi(Protocol):
             supports_streaming: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6692,6 +7363,13 @@ class Teleapi(Protocol):
             uploaded as a new file, so you can pass “attach://<file_attach_name>”
             if the thumbnail was uploaded using multipart/form-data under
             <file_attach_name>. More information on Sending Files »
+        :param cover: Cover for the video in the message. Pass a file_id to send a file that
+            exists on the Telegram servers (recommended), pass an HTTP URL for
+            Telegram to get a file from the Internet, or pass
+            “attach://<file_attach_name>” to upload a new one using
+            multipart/form-data under <file_attach_name> name. More information on
+            Sending Files »
+        :param start_timestamp: Start timestamp for the video in the message
         :param caption: Video caption (may also be used when resending videos by file_id),
             0-1024 characters after entities parsing
         :param parse_mode: Mode for parsing entities in the video caption. See formatting options
@@ -6704,6 +7382,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6731,6 +7412,7 @@ class Teleapi(Protocol):
             has_spoiler: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6775,6 +7457,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6797,6 +7482,7 @@ class Teleapi(Protocol):
             duration: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6829,6 +7515,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6850,6 +7539,7 @@ class Teleapi(Protocol):
             thumbnail: Optional[Union['InputFile', str]] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6882,8 +7572,64 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
+        :param reply_parameters: Description of the message to reply to
+        :param reply_markup: Additional interface options. A JSON-serialized object for an inline
+            keyboard, custom reply keyboard, instructions to remove a reply
+            keyboard or to force a reply from the user
+        """
+        pass
+
+    def sendPaidMedia(
+            self,
+            *,
+            chat_id: Union[int, str],
+            star_count: int,
+            media: List['InputPaidMedia'],
+            business_connection_id: Optional[str] = None,
+            payload: Optional[str] = None,
+            caption: Optional[str] = None,
+            parse_mode: Optional[str] = None,
+            caption_entities: Optional[List['MessageEntity']] = None,
+            show_caption_above_media: Optional[bool] = None,
+            disable_notification: Optional[bool] = None,
+            protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
+            reply_parameters: Optional['ReplyParameters'] = None,
+            reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
+    ) -> 'Message':
+        """
+        Use this method to send paid media. On success, the sent Message is
+        returned.
+
+        :param chat_id: Unique identifier for the target chat or username of the target
+            channel (in the format @channelusername). If the chat is a channel,
+            all Telegram Star proceeds from this media will be credited to the
+            chat's balance. Otherwise, they will be credited to the bot's balance.
+        :param star_count: The number of Telegram Stars that must be paid to buy access to the
+            media; 1-2500
+        :param media: A JSON-serialized array describing the media to be sent; up to 10
+            items
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message will be sent
+        :param payload: Bot-defined paid media payload, 0-128 bytes. This will not be
+            displayed to the user, use it for your internal processes.
+        :param caption: Media caption, 0-1024 characters after entities parsing
+        :param parse_mode: Mode for parsing entities in the media caption. See formatting options
+            for more details.
+        :param caption_entities: A JSON-serialized list of special entities that appear in the caption,
+            which can be specified instead of parse_mode
+        :param show_caption_above_media: Pass True, if the caption must be shown above the message media
+        :param disable_notification: Sends the message silently. Users will receive a notification with no
+            sound.
+        :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param reply_parameters: Description of the message to reply to
         :param reply_markup: Additional interface options. A JSON-serialized object for an inline
             keyboard, custom reply keyboard, instructions to remove a reply
@@ -6900,6 +7646,7 @@ class Teleapi(Protocol):
             message_thread_id: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
     ) -> List['Message']:
@@ -6920,6 +7667,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends messages silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent messages from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6940,6 +7690,7 @@ class Teleapi(Protocol):
             proximity_alert_radius: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -6968,6 +7719,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -6993,6 +7747,7 @@ class Teleapi(Protocol):
             google_place_type: Optional[str] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -7020,6 +7775,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -7041,6 +7799,7 @@ class Teleapi(Protocol):
             vcard: Optional[str] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -7062,6 +7821,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -7093,6 +7855,7 @@ class Teleapi(Protocol):
             is_closed: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -7136,6 +7899,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -7154,6 +7920,7 @@ class Teleapi(Protocol):
             emoji: Optional[str] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -7175,6 +7942,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -7222,9 +7992,10 @@ class Teleapi(Protocol):
     ) -> bool:
         """
         Use this method to change the chosen reactions on a message. Service
-        messages can't be reacted to. Automatically forwarded messages from a
-        channel to its discussion group have the same available reactions as
-        messages in the channel. Returns True on success.
+        messages of some types can't be reacted to. Automatically forwarded
+        messages from a channel to its discussion group have the same
+        available reactions as messages in the channel. Bots can't use paid
+        reactions. Returns True on success.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
@@ -7235,6 +8006,7 @@ class Teleapi(Protocol):
             Currently, as non-premium users, bots can set up to one reaction per
             message. A custom emoji reaction can be used if it is either already
             present on the message or explicitly allowed by chat administrators.
+            Paid reactions can't be used by bots.
         :param is_big: Pass True to set the reaction with a big animation
         """
         pass
@@ -7255,6 +8027,25 @@ class Teleapi(Protocol):
             photos are returned.
         :param limit: Limits the number of photos to be retrieved. Values between 1-100 are
             accepted. Defaults to 100.
+        """
+        pass
+
+    def setUserEmojiStatus(
+            self,
+            *,
+            user_id: int,
+            emoji_status_custom_emoji_id: Optional[str] = None,
+            emoji_status_expiration_date: Optional[int] = None,
+    ) -> bool:
+        """
+        Changes the emoji status for a given user that previously allowed the
+        bot to manage their emoji status via the Mini App method
+        requestEmojiStatusAccess. Returns True on success.
+
+        :param user_id: Unique identifier of the target user
+        :param emoji_status_custom_emoji_id: Custom emoji identifier of the emoji status to set. Pass an empty
+            string to remove the status.
+        :param emoji_status_expiration_date: Expiration date of the emoji status, if any
         """
         pass
 
@@ -7578,6 +8369,50 @@ class Teleapi(Protocol):
         """
         pass
 
+    def createChatSubscriptionInviteLink(
+            self,
+            *,
+            chat_id: Union[int, str],
+            subscription_period: int,
+            subscription_price: int,
+            name: Optional[str] = None,
+    ) -> 'ChatInviteLink':
+        """
+        Use this method to create a subscription invite link for a channel
+        chat. The bot must have the can_invite_users administrator rights. The
+        link can be edited using the method editChatSubscriptionInviteLink or
+        revoked using the method revokeChatInviteLink. Returns the new invite
+        link as a ChatInviteLink object.
+
+        :param chat_id: Unique identifier for the target channel chat or username of the
+            target channel (in the format @channelusername)
+        :param subscription_period: The number of seconds the subscription will be active for before the
+            next payment. Currently, it must always be 2592000 (30 days).
+        :param subscription_price: The amount of Telegram Stars a user must pay initially and after each
+            subsequent subscription period to be a member of the chat; 1-2500
+        :param name: Invite link name; 0-32 characters
+        """
+        pass
+
+    def editChatSubscriptionInviteLink(
+            self,
+            *,
+            chat_id: Union[int, str],
+            invite_link: str,
+            name: Optional[str] = None,
+    ) -> 'ChatInviteLink':
+        """
+        Use this method to edit a subscription invite link created by the bot.
+        The bot must have the can_invite_users administrator rights. Returns
+        the edited invite link as a ChatInviteLink object.
+
+        :param chat_id: Unique identifier for the target chat or username of the target
+            channel (in the format @channelusername)
+        :param invite_link: The invite link to edit
+        :param name: Invite link name; 0-32 characters
+        """
+        pass
+
     def revokeChatInviteLink(
             self,
             *,
@@ -7706,6 +8541,7 @@ class Teleapi(Protocol):
             *,
             chat_id: Union[int, str],
             message_id: int,
+            business_connection_id: Optional[str] = None,
             disable_notification: Optional[bool] = None,
     ) -> bool:
         """
@@ -7719,6 +8555,8 @@ class Teleapi(Protocol):
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
         :param message_id: Identifier of a message to pin
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message will be pinned
         :param disable_notification: Pass True if it is not necessary to send a notification to all chat
             members about the new pinned message. Notifications are always
             disabled in channels and private chats.
@@ -7729,6 +8567,7 @@ class Teleapi(Protocol):
             self,
             *,
             chat_id: Union[int, str],
+            business_connection_id: Optional[str] = None,
             message_id: Optional[int] = None,
     ) -> bool:
         """
@@ -7741,8 +8580,11 @@ class Teleapi(Protocol):
 
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
-        :param message_id: Identifier of a message to unpin. If not specified, the most recent
-            pinned message (by sending date) will be unpinned.
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message will be unpinned
+        :param message_id: Identifier of the message to unpin. Required if business_connection_id
+            is specified. If not specified, the most recent pinned message (by
+            sending date) will be unpinned.
         """
         pass
 
@@ -7918,8 +8760,8 @@ class Teleapi(Protocol):
         """
         Use this method to edit name and icon of a topic in a forum supergroup
         chat. The bot must be an administrator in the chat for this to work
-        and must have can_manage_topics administrator rights, unless it is the
-        creator of the topic. Returns True on success.
+        and must have the can_manage_topics administrator rights, unless it is
+        the creator of the topic. Returns True on success.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             supergroup (in the format @supergroupusername)
@@ -8014,8 +8856,8 @@ class Teleapi(Protocol):
         """
         Use this method to edit the name of the 'General' topic in a forum
         supergroup chat. The bot must be an administrator in the chat for this
-        to work and must have can_manage_topics administrator rights. Returns
-        True on success.
+        to work and must have the can_manage_topics administrator rights.
+        Returns True on success.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             supergroup (in the format @supergroupusername)
@@ -8387,6 +9229,7 @@ class Teleapi(Protocol):
             self,
             *,
             text: str,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -8398,9 +9241,13 @@ class Teleapi(Protocol):
         """
         Use this method to edit text and game messages. On success, if the
         edited message is not an inline message, the edited Message is
-        returned, otherwise True is returned.
+        returned, otherwise True is returned. Note that business messages that
+        were not sent by the bot and do not contain an inline keyboard can
+        only be edited within 48 hours from the time they were sent.
 
         :param text: New text of the message, 1-4096 characters after entities parsing
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -8420,6 +9267,7 @@ class Teleapi(Protocol):
     def editMessageCaption(
             self,
             *,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -8432,8 +9280,12 @@ class Teleapi(Protocol):
         """
         Use this method to edit captions of messages. On success, if the
         edited message is not an inline message, the edited Message is
-        returned, otherwise True is returned.
+        returned, otherwise True is returned. Note that business messages that
+        were not sent by the bot and do not contain an inline keyboard can
+        only be edited within 48 hours from the time they were sent.
 
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -8456,6 +9308,7 @@ class Teleapi(Protocol):
             self,
             *,
             media: 'InputMedia',
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -8463,15 +9316,20 @@ class Teleapi(Protocol):
     ) -> Union['Message', bool]:
         """
         Use this method to edit animation, audio, document, photo, or video
-        messages. If a message is part of a message album, then it can be
-        edited only to an audio for audio albums, only to a document for
-        document albums and to a photo or a video otherwise. When an inline
-        message is edited, a new file can't be uploaded; use a previously
-        uploaded file via its file_id or specify a URL. On success, if the
-        edited message is not an inline message, the edited Message is
-        returned, otherwise True is returned.
+        messages, or to add media to text messages. If a message is part of a
+        message album, then it can be edited only to an audio for audio
+        albums, only to a document for document albums and to a photo or a
+        video otherwise. When an inline message is edited, a new file can't be
+        uploaded; use a previously uploaded file via its file_id or specify a
+        URL. On success, if the edited message is not an inline message, the
+        edited Message is returned, otherwise True is returned. Note that
+        business messages that were not sent by the bot and do not contain an
+        inline keyboard can only be edited within 48 hours from the time they
+        were sent.
 
         :param media: A JSON-serialized object for a new media content of the message
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -8488,6 +9346,7 @@ class Teleapi(Protocol):
             *,
             latitude: float,
             longitude: float,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -8506,6 +9365,8 @@ class Teleapi(Protocol):
 
         :param latitude: Latitude of new location
         :param longitude: Longitude of new location
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -8531,6 +9392,7 @@ class Teleapi(Protocol):
     def stopMessageLiveLocation(
             self,
             *,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -8541,6 +9403,8 @@ class Teleapi(Protocol):
         live_period expires. On success, if the message is not an inline
         message, the edited Message is returned, otherwise True is returned.
 
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -8555,6 +9419,7 @@ class Teleapi(Protocol):
     def editMessageReplyMarkup(
             self,
             *,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -8563,8 +9428,12 @@ class Teleapi(Protocol):
         """
         Use this method to edit only the reply markup of messages. On success,
         if the edited message is not an inline message, the edited Message is
-        returned, otherwise True is returned.
+        returned, otherwise True is returned. Note that business messages that
+        were not sent by the bot and do not contain an inline keyboard can
+        only be edited within 48 hours from the time they were sent.
 
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -8581,6 +9450,7 @@ class Teleapi(Protocol):
             *,
             chat_id: Union[int, str],
             message_id: int,
+            business_connection_id: Optional[str] = None,
             reply_markup: Optional['InlineKeyboardMarkup'] = None,
     ) -> 'Poll':
         """
@@ -8590,6 +9460,8 @@ class Teleapi(Protocol):
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
         :param message_id: Identifier of the original message with the poll
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param reply_markup: A JSON-serialized object for a new message inline keyboard.
         """
         pass
@@ -8648,6 +9520,7 @@ class Teleapi(Protocol):
             emoji: Optional[str] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -8672,6 +9545,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -8914,21 +9790,21 @@ class Teleapi(Protocol):
         :param name: Sticker set name
         :param user_id: User identifier of the sticker set owner
         :param format: Format of the thumbnail, must be one of “static” for a .WEBP or .PNG
-            image, “animated” for a .TGS animation, or “video” for a WEBM video
+            image, “animated” for a .TGS animation, or “video” for a .WEBM video
         :param thumbnail: A .WEBP or .PNG image with the thumbnail, must be up to 128 kilobytes
             in size and have a width and height of exactly 100px, or a .TGS
             animation with a thumbnail up to 32 kilobytes in size (see
-            https://core.telegram.org/stickers#animated-sticker-requirements for
-            animated sticker technical requirements), or a WEBM video with the
-            thumbnail up to 32 kilobytes in size; see
-            https://core.telegram.org/stickers#video-sticker-requirements for
-            video sticker technical requirements. Pass a file_id as a String to
-            send a file that already exists on the Telegram servers, pass an HTTP
-            URL as a String for Telegram to get a file from the Internet, or
-            upload a new one using multipart/form-data. More information on
-            Sending Files ». Animated and video sticker set thumbnails can't be
-            uploaded via HTTP URL. If omitted, then the thumbnail is dropped and
-            the first sticker is used as the thumbnail.
+            https://core.telegram.org/stickers#animation-requirements for animated
+            sticker technical requirements), or a .WEBM video with the thumbnail
+            up to 32 kilobytes in size; see
+            https://core.telegram.org/stickers#video-requirements for video
+            sticker technical requirements. Pass a file_id as a String to send a
+            file that already exists on the Telegram servers, pass an HTTP URL as
+            a String for Telegram to get a file from the Internet, or upload a new
+            one using multipart/form-data. More information on Sending Files ».
+            Animated and video sticker set thumbnails can't be uploaded via HTTP
+            URL. If omitted, then the thumbnail is dropped and the first sticker
+            is used as the thumbnail.
         """
         pass
 
@@ -8959,6 +9835,102 @@ class Teleapi(Protocol):
         Returns True on success.
 
         :param name: Sticker set name
+        """
+        pass
+
+    def sendGift(
+            self,
+            *,
+            gift_id: str,
+            user_id: Optional[int] = None,
+            chat_id: Optional[Union[int, str]] = None,
+            pay_for_upgrade: Optional[bool] = None,
+            text: Optional[str] = None,
+            text_parse_mode: Optional[str] = None,
+            text_entities: Optional[List['MessageEntity']] = None,
+    ) -> bool:
+        """
+        Sends a gift to the given user or channel chat. The gift can't be
+        converted to Telegram Stars by the receiver. Returns True on success.
+
+        :param gift_id: Identifier of the gift
+        :param user_id: Required if chat_id is not specified. Unique identifier of the target
+            user who will receive the gift.
+        :param chat_id: Required if user_id is not specified. Unique identifier for the chat
+            or username of the channel (in the format @channelusername) that will
+            receive the gift.
+        :param pay_for_upgrade: Pass True to pay for the gift upgrade from the bot's balance, thereby
+            making the upgrade free for the receiver
+        :param text: Text that will be shown along with the gift; 0-128 characters
+        :param text_parse_mode: Mode for parsing entities in the text. See formatting options for more
+            details. Entities other than “bold”, “italic”, “underline”,
+            “strikethrough”, “spoiler”, and “custom_emoji” are ignored.
+        :param text_entities: A JSON-serialized list of special entities that appear in the gift
+            text. It can be specified instead of text_parse_mode. Entities other
+            than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and
+            “custom_emoji” are ignored.
+        """
+        pass
+
+    def verifyUser(
+            self,
+            *,
+            user_id: int,
+            custom_description: Optional[str] = None,
+    ) -> bool:
+        """
+        Verifies a user on behalf of the organization which is represented by
+        the bot. Returns True on success.
+
+        :param user_id: Unique identifier of the target user
+        :param custom_description: Custom description for the verification; 0-70 characters. Must be
+            empty if the organization isn't allowed to provide a custom
+            verification description.
+        """
+        pass
+
+    def verifyChat(
+            self,
+            *,
+            chat_id: Union[int, str],
+            custom_description: Optional[str] = None,
+    ) -> bool:
+        """
+        Verifies a chat on behalf of the organization which is represented by
+        the bot. Returns True on success.
+
+        :param chat_id: Unique identifier for the target chat or username of the target
+            channel (in the format @channelusername)
+        :param custom_description: Custom description for the verification; 0-70 characters. Must be
+            empty if the organization isn't allowed to provide a custom
+            verification description.
+        """
+        pass
+
+    def removeUserVerification(
+            self,
+            *,
+            user_id: int,
+    ) -> bool:
+        """
+        Removes verification from a user who is currently verified on behalf
+        of the organization represented by the bot. Returns True on success.
+
+        :param user_id: Unique identifier of the target user
+        """
+        pass
+
+    def removeChatVerification(
+            self,
+            *,
+            chat_id: Union[int, str],
+    ) -> bool:
+        """
+        Removes verification from a chat that is currently verified on behalf
+        of the organization represented by the bot. Returns True on success.
+
+        :param chat_id: Unique identifier for the target chat or username of the target
+            channel (in the format @channelusername)
         """
         pass
 
@@ -9009,6 +9981,29 @@ class Teleapi(Protocol):
         """
         pass
 
+    def savePreparedInlineMessage(
+            self,
+            *,
+            user_id: int,
+            result: 'InlineQueryResult',
+            allow_user_chats: Optional[bool] = None,
+            allow_bot_chats: Optional[bool] = None,
+            allow_group_chats: Optional[bool] = None,
+            allow_channel_chats: Optional[bool] = None,
+    ) -> 'PreparedInlineMessage':
+        """
+        Stores a message that can be sent by a user of a Mini App. Returns a
+        PreparedInlineMessage object.
+
+        :param user_id: Unique identifier of the target user that can use the prepared message
+        :param result: A JSON-serialized object describing the message to be sent
+        :param allow_user_chats: Pass True if the message can be sent to private chats with users
+        :param allow_bot_chats: Pass True if the message can be sent to private chats with bots
+        :param allow_group_chats: Pass True if the message can be sent to group and supergroup chats
+        :param allow_channel_chats: Pass True if the message can be sent to channel chats
+        """
+        pass
+
     def sendInvoice(
             self,
             *,
@@ -9037,6 +10032,7 @@ class Teleapi(Protocol):
             is_flexible: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional['InlineKeyboardMarkup'] = None,
@@ -9050,7 +10046,7 @@ class Teleapi(Protocol):
         :param title: Product name, 1-32 characters
         :param description: Product description, 1-255 characters
         :param payload: Bot-defined invoice payload, 1-128 bytes. This will not be displayed
-            to the user, use for your internal processes.
+            to the user, use it for your internal processes.
         :param currency: Three-letter ISO 4217 currency code, see more on currencies. Pass
             “XTR” for payments in Telegram Stars.
         :param prices: Price breakdown, a JSON-serialized list of components (e.g. product
@@ -9103,6 +10099,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -9120,7 +10119,9 @@ class Teleapi(Protocol):
             payload: str,
             currency: str,
             prices: List['LabeledPrice'],
+            business_connection_id: Optional[str] = None,
             provider_token: Optional[str] = None,
+            subscription_period: Optional[int] = None,
             max_tip_amount: Optional[int] = None,
             suggested_tip_amounts: Optional[List[int]] = None,
             provider_data: Optional[str] = None,
@@ -9143,14 +10144,22 @@ class Teleapi(Protocol):
         :param title: Product name, 1-32 characters
         :param description: Product description, 1-255 characters
         :param payload: Bot-defined invoice payload, 1-128 bytes. This will not be displayed
-            to the user, use for your internal processes.
+            to the user, use it for your internal processes.
         :param currency: Three-letter ISO 4217 currency code, see more on currencies. Pass
             “XTR” for payments in Telegram Stars.
         :param prices: Price breakdown, a JSON-serialized list of components (e.g. product
             price, tax, discount, delivery cost, delivery tax, bonus, etc.). Must
             contain exactly one item for payments in Telegram Stars.
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            link will be created. For payments in Telegram Stars only.
         :param provider_token: Payment provider token, obtained via @BotFather. Pass an empty string
             for payments in Telegram Stars.
+        :param subscription_period: The number of seconds the subscription will be active for before the
+            next payment. The currency must be set to “XTR” (Telegram Stars) if
+            the parameter is used. Currently, it must always be 2592000 (30 days)
+            if specified. Any number of subscriptions can be active for a given
+            bot at the same time, including multiple concurrent subscriptions from
+            the same user. Subscription price must no exceed 2500 Telegram Stars.
         :param max_tip_amount: The maximum accepted amount for tips in the smallest units of the
             currency (integer, not float/double). For example, for a maximum tip
             of US$ 1.45 pass max_tip_amount = 145. See the exp parameter in
@@ -9208,8 +10217,8 @@ class Teleapi(Protocol):
         :param shipping_options: Required if ok is True. A JSON-serialized array of available shipping
             options.
         :param error_message: Required if ok is False. Error message in human readable form that
-            explains why it is impossible to complete the order (e.g. \"Sorry,
-            delivery to your desired address is unavailable'). Telegram will
+            explains why it is impossible to complete the order (e.g. “Sorry,
+            delivery to your desired address is unavailable”). Telegram will
             display this message to the user.
         """
         pass
@@ -9242,6 +10251,22 @@ class Teleapi(Protocol):
         """
         pass
 
+    def getStarTransactions(
+            self,
+            *,
+            offset: Optional[int] = None,
+            limit: Optional[int] = None,
+    ) -> 'StarTransactions':
+        """
+        Returns the bot's Telegram Star transactions in chronological order.
+        On success, returns a StarTransactions object.
+
+        :param offset: Number of transactions to skip in the response
+        :param limit: The maximum number of transactions to be retrieved. Values between
+            1-100 are accepted. Defaults to 100.
+        """
+        pass
+
     def refundStarPayment(
             self,
             *,
@@ -9254,6 +10279,26 @@ class Teleapi(Protocol):
 
         :param user_id: Identifier of the user whose payment will be refunded
         :param telegram_payment_charge_id: Telegram payment identifier
+        """
+        pass
+
+    def editUserStarSubscription(
+            self,
+            *,
+            user_id: int,
+            telegram_payment_charge_id: str,
+            is_canceled: bool,
+    ) -> bool:
+        """
+        Allows the bot to cancel or re-enable extension of a subscription paid
+        in Telegram Stars. Returns True on success.
+
+        :param user_id: Identifier of the user whose subscription will be edited
+        :param telegram_payment_charge_id: Telegram payment identifier for the subscription
+        :param is_canceled: Pass True to cancel extension of the user subscription; the
+            subscription must be active up to the end of the current subscription
+            period. Pass False to allow the user to re-enable a subscription that
+            was previously canceled by the bot.
         """
         pass
 
@@ -9290,6 +10335,7 @@ class Teleapi(Protocol):
             message_thread_id: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional['InlineKeyboardMarkup'] = None,
@@ -9308,6 +10354,9 @@ class Teleapi(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -9406,8 +10455,8 @@ class TeleapiAsync(Protocol):
             to receive all update types except chat_member, message_reaction, and
             message_reaction_count (default). If not specified, the previous
             setting will be used.Please note that this parameter doesn't affect
-            updates created before the call to the getUpdates, so unwanted updates
-            may be received for a short period of time.
+            updates created before the call to getUpdates, so unwanted updates may
+            be received for a short period of time.
         """
         pass
 
@@ -9426,8 +10475,10 @@ class TeleapiAsync(Protocol):
         Use this method to specify a URL and receive incoming updates via an
         outgoing webhook. Whenever there is an update for the bot, we will
         send an HTTPS POST request to the specified URL, containing a JSON-
-        serialized Update. In case of an unsuccessful request, we will give up
-        after a reasonable amount of attempts. Returns True on success.
+        serialized Update. In case of an unsuccessful request (a request with
+        response HTTP status code different from 2XY), we will repeat the
+        request and give up after a reasonable amount of attempts. Returns
+        True on success.
         
         If you'd like to make sure that the webhook was set by you, you can
         specify secret data in the parameter secret_token. If specified, the
@@ -9533,6 +10584,7 @@ class TeleapiAsync(Protocol):
             link_preview_options: Optional['LinkPreviewOptions'] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -9557,6 +10609,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -9573,6 +10628,7 @@ class TeleapiAsync(Protocol):
             from_chat_id: Union[int, str],
             message_id: int,
             message_thread_id: Optional[int] = None,
+            video_start_timestamp: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
     ) -> 'Message':
@@ -9588,6 +10644,7 @@ class TeleapiAsync(Protocol):
         :param message_id: Message identifier in the chat specified in from_chat_id
         :param message_thread_id: Unique identifier for the target message thread (topic) of the forum;
             for forum supergroups only
+        :param video_start_timestamp: New start timestamp for the forwarded video in the message
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the forwarded message from forwarding and
@@ -9635,23 +10692,25 @@ class TeleapiAsync(Protocol):
             from_chat_id: Union[int, str],
             message_id: int,
             message_thread_id: Optional[int] = None,
+            video_start_timestamp: Optional[int] = None,
             caption: Optional[str] = None,
             parse_mode: Optional[str] = None,
             caption_entities: Optional[List['MessageEntity']] = None,
             show_caption_above_media: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
     ) -> 'MessageId':
         """
-        Use this method to copy messages of any kind. Service messages,
-        giveaway messages, giveaway winners messages, and invoice messages
-        can't be copied. A quiz poll can be copied only if the value of the
-        field correct_option_id is known to the bot. The method is analogous
-        to the method forwardMessage, but the copied message doesn't have a
-        link to the original message. Returns the MessageId of the sent
-        message on success.
+        Use this method to copy messages of any kind. Service messages, paid
+        media messages, giveaway messages, giveaway winners messages, and
+        invoice messages can't be copied. A quiz poll can be copied only if
+        the value of the field correct_option_id is known to the bot. The
+        method is analogous to the method forwardMessage, but the copied
+        message doesn't have a link to the original message. Returns the
+        MessageId of the sent message on success.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
@@ -9660,6 +10719,7 @@ class TeleapiAsync(Protocol):
         :param message_id: Message identifier in the chat specified in from_chat_id
         :param message_thread_id: Unique identifier for the target message thread (topic) of the forum;
             for forum supergroups only
+        :param video_start_timestamp: New start timestamp for the copied video in the message
         :param caption: New caption for media, 0-1024 characters after entities parsing. If
             not specified, the original caption is kept
         :param parse_mode: Mode for parsing entities in the new caption. See formatting options
@@ -9671,6 +10731,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param reply_parameters: Description of the message to reply to
         :param reply_markup: Additional interface options. A JSON-serialized object for an inline
             keyboard, custom reply keyboard, instructions to remove a reply
@@ -9692,13 +10755,13 @@ class TeleapiAsync(Protocol):
         """
         Use this method to copy messages of any kind. If some of the specified
         messages can't be found or copied, they are skipped. Service messages,
-        giveaway messages, giveaway winners messages, and invoice messages
-        can't be copied. A quiz poll can be copied only if the value of the
-        field correct_option_id is known to the bot. The method is analogous
-        to the method forwardMessages, but the copied messages don't have a
-        link to the original message. Album grouping is kept for copied
-        messages. On success, an array of MessageId of the sent messages is
-        returned.
+        paid media messages, giveaway messages, giveaway winners messages, and
+        invoice messages can't be copied. A quiz poll can be copied only if
+        the value of the field correct_option_id is known to the bot. The
+        method is analogous to the method forwardMessages, but the copied
+        messages don't have a link to the original message. Album grouping is
+        kept for copied messages. On success, an array of MessageId of the
+        sent messages is returned.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
@@ -9730,6 +10793,7 @@ class TeleapiAsync(Protocol):
             has_spoiler: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -9761,6 +10825,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -9786,6 +10853,7 @@ class TeleapiAsync(Protocol):
             thumbnail: Optional[Union['InputFile', str]] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -9829,6 +10897,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -9852,6 +10923,7 @@ class TeleapiAsync(Protocol):
             disable_content_type_detection: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -9890,6 +10962,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -9910,6 +10985,8 @@ class TeleapiAsync(Protocol):
             width: Optional[int] = None,
             height: Optional[int] = None,
             thumbnail: Optional[Union['InputFile', str]] = None,
+            cover: Optional[Union['InputFile', str]] = None,
+            start_timestamp: Optional[int] = None,
             caption: Optional[str] = None,
             parse_mode: Optional[str] = None,
             caption_entities: Optional[List['MessageEntity']] = None,
@@ -9918,6 +10995,7 @@ class TeleapiAsync(Protocol):
             supports_streaming: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -9949,6 +11027,13 @@ class TeleapiAsync(Protocol):
             uploaded as a new file, so you can pass “attach://<file_attach_name>”
             if the thumbnail was uploaded using multipart/form-data under
             <file_attach_name>. More information on Sending Files »
+        :param cover: Cover for the video in the message. Pass a file_id to send a file that
+            exists on the Telegram servers (recommended), pass an HTTP URL for
+            Telegram to get a file from the Internet, or pass
+            “attach://<file_attach_name>” to upload a new one using
+            multipart/form-data under <file_attach_name> name. More information on
+            Sending Files »
+        :param start_timestamp: Start timestamp for the video in the message
         :param caption: Video caption (may also be used when resending videos by file_id),
             0-1024 characters after entities parsing
         :param parse_mode: Mode for parsing entities in the video caption. See formatting options
@@ -9961,6 +11046,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -9988,6 +11076,7 @@ class TeleapiAsync(Protocol):
             has_spoiler: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -10032,6 +11121,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -10054,6 +11146,7 @@ class TeleapiAsync(Protocol):
             duration: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -10086,6 +11179,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -10107,6 +11203,7 @@ class TeleapiAsync(Protocol):
             thumbnail: Optional[Union['InputFile', str]] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -10139,8 +11236,64 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
+        :param reply_parameters: Description of the message to reply to
+        :param reply_markup: Additional interface options. A JSON-serialized object for an inline
+            keyboard, custom reply keyboard, instructions to remove a reply
+            keyboard or to force a reply from the user
+        """
+        pass
+
+    async def sendPaidMedia(
+            self,
+            *,
+            chat_id: Union[int, str],
+            star_count: int,
+            media: List['InputPaidMedia'],
+            business_connection_id: Optional[str] = None,
+            payload: Optional[str] = None,
+            caption: Optional[str] = None,
+            parse_mode: Optional[str] = None,
+            caption_entities: Optional[List['MessageEntity']] = None,
+            show_caption_above_media: Optional[bool] = None,
+            disable_notification: Optional[bool] = None,
+            protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
+            reply_parameters: Optional['ReplyParameters'] = None,
+            reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
+    ) -> 'Message':
+        """
+        Use this method to send paid media. On success, the sent Message is
+        returned.
+
+        :param chat_id: Unique identifier for the target chat or username of the target
+            channel (in the format @channelusername). If the chat is a channel,
+            all Telegram Star proceeds from this media will be credited to the
+            chat's balance. Otherwise, they will be credited to the bot's balance.
+        :param star_count: The number of Telegram Stars that must be paid to buy access to the
+            media; 1-2500
+        :param media: A JSON-serialized array describing the media to be sent; up to 10
+            items
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message will be sent
+        :param payload: Bot-defined paid media payload, 0-128 bytes. This will not be
+            displayed to the user, use it for your internal processes.
+        :param caption: Media caption, 0-1024 characters after entities parsing
+        :param parse_mode: Mode for parsing entities in the media caption. See formatting options
+            for more details.
+        :param caption_entities: A JSON-serialized list of special entities that appear in the caption,
+            which can be specified instead of parse_mode
+        :param show_caption_above_media: Pass True, if the caption must be shown above the message media
+        :param disable_notification: Sends the message silently. Users will receive a notification with no
+            sound.
+        :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param reply_parameters: Description of the message to reply to
         :param reply_markup: Additional interface options. A JSON-serialized object for an inline
             keyboard, custom reply keyboard, instructions to remove a reply
@@ -10157,6 +11310,7 @@ class TeleapiAsync(Protocol):
             message_thread_id: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
     ) -> List['Message']:
@@ -10177,6 +11331,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends messages silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent messages from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -10197,6 +11354,7 @@ class TeleapiAsync(Protocol):
             proximity_alert_radius: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -10225,6 +11383,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -10250,6 +11411,7 @@ class TeleapiAsync(Protocol):
             google_place_type: Optional[str] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -10277,6 +11439,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -10298,6 +11463,7 @@ class TeleapiAsync(Protocol):
             vcard: Optional[str] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -10319,6 +11485,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -10350,6 +11519,7 @@ class TeleapiAsync(Protocol):
             is_closed: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -10393,6 +11563,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -10411,6 +11584,7 @@ class TeleapiAsync(Protocol):
             emoji: Optional[str] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -10432,6 +11606,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -10479,9 +11656,10 @@ class TeleapiAsync(Protocol):
     ) -> bool:
         """
         Use this method to change the chosen reactions on a message. Service
-        messages can't be reacted to. Automatically forwarded messages from a
-        channel to its discussion group have the same available reactions as
-        messages in the channel. Returns True on success.
+        messages of some types can't be reacted to. Automatically forwarded
+        messages from a channel to its discussion group have the same
+        available reactions as messages in the channel. Bots can't use paid
+        reactions. Returns True on success.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
@@ -10492,6 +11670,7 @@ class TeleapiAsync(Protocol):
             Currently, as non-premium users, bots can set up to one reaction per
             message. A custom emoji reaction can be used if it is either already
             present on the message or explicitly allowed by chat administrators.
+            Paid reactions can't be used by bots.
         :param is_big: Pass True to set the reaction with a big animation
         """
         pass
@@ -10512,6 +11691,25 @@ class TeleapiAsync(Protocol):
             photos are returned.
         :param limit: Limits the number of photos to be retrieved. Values between 1-100 are
             accepted. Defaults to 100.
+        """
+        pass
+
+    async def setUserEmojiStatus(
+            self,
+            *,
+            user_id: int,
+            emoji_status_custom_emoji_id: Optional[str] = None,
+            emoji_status_expiration_date: Optional[int] = None,
+    ) -> bool:
+        """
+        Changes the emoji status for a given user that previously allowed the
+        bot to manage their emoji status via the Mini App method
+        requestEmojiStatusAccess. Returns True on success.
+
+        :param user_id: Unique identifier of the target user
+        :param emoji_status_custom_emoji_id: Custom emoji identifier of the emoji status to set. Pass an empty
+            string to remove the status.
+        :param emoji_status_expiration_date: Expiration date of the emoji status, if any
         """
         pass
 
@@ -10835,6 +12033,50 @@ class TeleapiAsync(Protocol):
         """
         pass
 
+    async def createChatSubscriptionInviteLink(
+            self,
+            *,
+            chat_id: Union[int, str],
+            subscription_period: int,
+            subscription_price: int,
+            name: Optional[str] = None,
+    ) -> 'ChatInviteLink':
+        """
+        Use this method to create a subscription invite link for a channel
+        chat. The bot must have the can_invite_users administrator rights. The
+        link can be edited using the method editChatSubscriptionInviteLink or
+        revoked using the method revokeChatInviteLink. Returns the new invite
+        link as a ChatInviteLink object.
+
+        :param chat_id: Unique identifier for the target channel chat or username of the
+            target channel (in the format @channelusername)
+        :param subscription_period: The number of seconds the subscription will be active for before the
+            next payment. Currently, it must always be 2592000 (30 days).
+        :param subscription_price: The amount of Telegram Stars a user must pay initially and after each
+            subsequent subscription period to be a member of the chat; 1-2500
+        :param name: Invite link name; 0-32 characters
+        """
+        pass
+
+    async def editChatSubscriptionInviteLink(
+            self,
+            *,
+            chat_id: Union[int, str],
+            invite_link: str,
+            name: Optional[str] = None,
+    ) -> 'ChatInviteLink':
+        """
+        Use this method to edit a subscription invite link created by the bot.
+        The bot must have the can_invite_users administrator rights. Returns
+        the edited invite link as a ChatInviteLink object.
+
+        :param chat_id: Unique identifier for the target chat or username of the target
+            channel (in the format @channelusername)
+        :param invite_link: The invite link to edit
+        :param name: Invite link name; 0-32 characters
+        """
+        pass
+
     async def revokeChatInviteLink(
             self,
             *,
@@ -10963,6 +12205,7 @@ class TeleapiAsync(Protocol):
             *,
             chat_id: Union[int, str],
             message_id: int,
+            business_connection_id: Optional[str] = None,
             disable_notification: Optional[bool] = None,
     ) -> bool:
         """
@@ -10976,6 +12219,8 @@ class TeleapiAsync(Protocol):
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
         :param message_id: Identifier of a message to pin
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message will be pinned
         :param disable_notification: Pass True if it is not necessary to send a notification to all chat
             members about the new pinned message. Notifications are always
             disabled in channels and private chats.
@@ -10986,6 +12231,7 @@ class TeleapiAsync(Protocol):
             self,
             *,
             chat_id: Union[int, str],
+            business_connection_id: Optional[str] = None,
             message_id: Optional[int] = None,
     ) -> bool:
         """
@@ -10998,8 +12244,11 @@ class TeleapiAsync(Protocol):
 
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
-        :param message_id: Identifier of a message to unpin. If not specified, the most recent
-            pinned message (by sending date) will be unpinned.
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message will be unpinned
+        :param message_id: Identifier of the message to unpin. Required if business_connection_id
+            is specified. If not specified, the most recent pinned message (by
+            sending date) will be unpinned.
         """
         pass
 
@@ -11175,8 +12424,8 @@ class TeleapiAsync(Protocol):
         """
         Use this method to edit name and icon of a topic in a forum supergroup
         chat. The bot must be an administrator in the chat for this to work
-        and must have can_manage_topics administrator rights, unless it is the
-        creator of the topic. Returns True on success.
+        and must have the can_manage_topics administrator rights, unless it is
+        the creator of the topic. Returns True on success.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             supergroup (in the format @supergroupusername)
@@ -11271,8 +12520,8 @@ class TeleapiAsync(Protocol):
         """
         Use this method to edit the name of the 'General' topic in a forum
         supergroup chat. The bot must be an administrator in the chat for this
-        to work and must have can_manage_topics administrator rights. Returns
-        True on success.
+        to work and must have the can_manage_topics administrator rights.
+        Returns True on success.
 
         :param chat_id: Unique identifier for the target chat or username of the target
             supergroup (in the format @supergroupusername)
@@ -11644,6 +12893,7 @@ class TeleapiAsync(Protocol):
             self,
             *,
             text: str,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -11655,9 +12905,13 @@ class TeleapiAsync(Protocol):
         """
         Use this method to edit text and game messages. On success, if the
         edited message is not an inline message, the edited Message is
-        returned, otherwise True is returned.
+        returned, otherwise True is returned. Note that business messages that
+        were not sent by the bot and do not contain an inline keyboard can
+        only be edited within 48 hours from the time they were sent.
 
         :param text: New text of the message, 1-4096 characters after entities parsing
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -11677,6 +12931,7 @@ class TeleapiAsync(Protocol):
     async def editMessageCaption(
             self,
             *,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -11689,8 +12944,12 @@ class TeleapiAsync(Protocol):
         """
         Use this method to edit captions of messages. On success, if the
         edited message is not an inline message, the edited Message is
-        returned, otherwise True is returned.
+        returned, otherwise True is returned. Note that business messages that
+        were not sent by the bot and do not contain an inline keyboard can
+        only be edited within 48 hours from the time they were sent.
 
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -11713,6 +12972,7 @@ class TeleapiAsync(Protocol):
             self,
             *,
             media: 'InputMedia',
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -11720,15 +12980,20 @@ class TeleapiAsync(Protocol):
     ) -> Union['Message', bool]:
         """
         Use this method to edit animation, audio, document, photo, or video
-        messages. If a message is part of a message album, then it can be
-        edited only to an audio for audio albums, only to a document for
-        document albums and to a photo or a video otherwise. When an inline
-        message is edited, a new file can't be uploaded; use a previously
-        uploaded file via its file_id or specify a URL. On success, if the
-        edited message is not an inline message, the edited Message is
-        returned, otherwise True is returned.
+        messages, or to add media to text messages. If a message is part of a
+        message album, then it can be edited only to an audio for audio
+        albums, only to a document for document albums and to a photo or a
+        video otherwise. When an inline message is edited, a new file can't be
+        uploaded; use a previously uploaded file via its file_id or specify a
+        URL. On success, if the edited message is not an inline message, the
+        edited Message is returned, otherwise True is returned. Note that
+        business messages that were not sent by the bot and do not contain an
+        inline keyboard can only be edited within 48 hours from the time they
+        were sent.
 
         :param media: A JSON-serialized object for a new media content of the message
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -11745,6 +13010,7 @@ class TeleapiAsync(Protocol):
             *,
             latitude: float,
             longitude: float,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -11763,6 +13029,8 @@ class TeleapiAsync(Protocol):
 
         :param latitude: Latitude of new location
         :param longitude: Longitude of new location
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -11788,6 +13056,7 @@ class TeleapiAsync(Protocol):
     async def stopMessageLiveLocation(
             self,
             *,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -11798,6 +13067,8 @@ class TeleapiAsync(Protocol):
         live_period expires. On success, if the message is not an inline
         message, the edited Message is returned, otherwise True is returned.
 
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -11812,6 +13083,7 @@ class TeleapiAsync(Protocol):
     async def editMessageReplyMarkup(
             self,
             *,
+            business_connection_id: Optional[str] = None,
             chat_id: Optional[Union[int, str]] = None,
             message_id: Optional[int] = None,
             inline_message_id: Optional[str] = None,
@@ -11820,8 +13092,12 @@ class TeleapiAsync(Protocol):
         """
         Use this method to edit only the reply markup of messages. On success,
         if the edited message is not an inline message, the edited Message is
-        returned, otherwise True is returned.
+        returned, otherwise True is returned. Note that business messages that
+        were not sent by the bot and do not contain an inline keyboard can
+        only be edited within 48 hours from the time they were sent.
 
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param chat_id: Required if inline_message_id is not specified. Unique identifier for
             the target chat or username of the target channel (in the format
             @channelusername)
@@ -11838,6 +13114,7 @@ class TeleapiAsync(Protocol):
             *,
             chat_id: Union[int, str],
             message_id: int,
+            business_connection_id: Optional[str] = None,
             reply_markup: Optional['InlineKeyboardMarkup'] = None,
     ) -> 'Poll':
         """
@@ -11847,6 +13124,8 @@ class TeleapiAsync(Protocol):
         :param chat_id: Unique identifier for the target chat or username of the target
             channel (in the format @channelusername)
         :param message_id: Identifier of the original message with the poll
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            message to be edited was sent
         :param reply_markup: A JSON-serialized object for a new message inline keyboard.
         """
         pass
@@ -11905,6 +13184,7 @@ class TeleapiAsync(Protocol):
             emoji: Optional[str] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional[Union['InlineKeyboardMarkup', 'ReplyKeyboardMarkup', 'ReplyKeyboardRemove', 'ForceReply']] = None,
@@ -11929,6 +13209,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -12171,21 +13454,21 @@ class TeleapiAsync(Protocol):
         :param name: Sticker set name
         :param user_id: User identifier of the sticker set owner
         :param format: Format of the thumbnail, must be one of “static” for a .WEBP or .PNG
-            image, “animated” for a .TGS animation, or “video” for a WEBM video
+            image, “animated” for a .TGS animation, or “video” for a .WEBM video
         :param thumbnail: A .WEBP or .PNG image with the thumbnail, must be up to 128 kilobytes
             in size and have a width and height of exactly 100px, or a .TGS
             animation with a thumbnail up to 32 kilobytes in size (see
-            https://core.telegram.org/stickers#animated-sticker-requirements for
-            animated sticker technical requirements), or a WEBM video with the
-            thumbnail up to 32 kilobytes in size; see
-            https://core.telegram.org/stickers#video-sticker-requirements for
-            video sticker technical requirements. Pass a file_id as a String to
-            send a file that already exists on the Telegram servers, pass an HTTP
-            URL as a String for Telegram to get a file from the Internet, or
-            upload a new one using multipart/form-data. More information on
-            Sending Files ». Animated and video sticker set thumbnails can't be
-            uploaded via HTTP URL. If omitted, then the thumbnail is dropped and
-            the first sticker is used as the thumbnail.
+            https://core.telegram.org/stickers#animation-requirements for animated
+            sticker technical requirements), or a .WEBM video with the thumbnail
+            up to 32 kilobytes in size; see
+            https://core.telegram.org/stickers#video-requirements for video
+            sticker technical requirements. Pass a file_id as a String to send a
+            file that already exists on the Telegram servers, pass an HTTP URL as
+            a String for Telegram to get a file from the Internet, or upload a new
+            one using multipart/form-data. More information on Sending Files ».
+            Animated and video sticker set thumbnails can't be uploaded via HTTP
+            URL. If omitted, then the thumbnail is dropped and the first sticker
+            is used as the thumbnail.
         """
         pass
 
@@ -12216,6 +13499,102 @@ class TeleapiAsync(Protocol):
         Returns True on success.
 
         :param name: Sticker set name
+        """
+        pass
+
+    async def sendGift(
+            self,
+            *,
+            gift_id: str,
+            user_id: Optional[int] = None,
+            chat_id: Optional[Union[int, str]] = None,
+            pay_for_upgrade: Optional[bool] = None,
+            text: Optional[str] = None,
+            text_parse_mode: Optional[str] = None,
+            text_entities: Optional[List['MessageEntity']] = None,
+    ) -> bool:
+        """
+        Sends a gift to the given user or channel chat. The gift can't be
+        converted to Telegram Stars by the receiver. Returns True on success.
+
+        :param gift_id: Identifier of the gift
+        :param user_id: Required if chat_id is not specified. Unique identifier of the target
+            user who will receive the gift.
+        :param chat_id: Required if user_id is not specified. Unique identifier for the chat
+            or username of the channel (in the format @channelusername) that will
+            receive the gift.
+        :param pay_for_upgrade: Pass True to pay for the gift upgrade from the bot's balance, thereby
+            making the upgrade free for the receiver
+        :param text: Text that will be shown along with the gift; 0-128 characters
+        :param text_parse_mode: Mode for parsing entities in the text. See formatting options for more
+            details. Entities other than “bold”, “italic”, “underline”,
+            “strikethrough”, “spoiler”, and “custom_emoji” are ignored.
+        :param text_entities: A JSON-serialized list of special entities that appear in the gift
+            text. It can be specified instead of text_parse_mode. Entities other
+            than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and
+            “custom_emoji” are ignored.
+        """
+        pass
+
+    async def verifyUser(
+            self,
+            *,
+            user_id: int,
+            custom_description: Optional[str] = None,
+    ) -> bool:
+        """
+        Verifies a user on behalf of the organization which is represented by
+        the bot. Returns True on success.
+
+        :param user_id: Unique identifier of the target user
+        :param custom_description: Custom description for the verification; 0-70 characters. Must be
+            empty if the organization isn't allowed to provide a custom
+            verification description.
+        """
+        pass
+
+    async def verifyChat(
+            self,
+            *,
+            chat_id: Union[int, str],
+            custom_description: Optional[str] = None,
+    ) -> bool:
+        """
+        Verifies a chat on behalf of the organization which is represented by
+        the bot. Returns True on success.
+
+        :param chat_id: Unique identifier for the target chat or username of the target
+            channel (in the format @channelusername)
+        :param custom_description: Custom description for the verification; 0-70 characters. Must be
+            empty if the organization isn't allowed to provide a custom
+            verification description.
+        """
+        pass
+
+    async def removeUserVerification(
+            self,
+            *,
+            user_id: int,
+    ) -> bool:
+        """
+        Removes verification from a user who is currently verified on behalf
+        of the organization represented by the bot. Returns True on success.
+
+        :param user_id: Unique identifier of the target user
+        """
+        pass
+
+    async def removeChatVerification(
+            self,
+            *,
+            chat_id: Union[int, str],
+    ) -> bool:
+        """
+        Removes verification from a chat that is currently verified on behalf
+        of the organization represented by the bot. Returns True on success.
+
+        :param chat_id: Unique identifier for the target chat or username of the target
+            channel (in the format @channelusername)
         """
         pass
 
@@ -12266,6 +13645,29 @@ class TeleapiAsync(Protocol):
         """
         pass
 
+    async def savePreparedInlineMessage(
+            self,
+            *,
+            user_id: int,
+            result: 'InlineQueryResult',
+            allow_user_chats: Optional[bool] = None,
+            allow_bot_chats: Optional[bool] = None,
+            allow_group_chats: Optional[bool] = None,
+            allow_channel_chats: Optional[bool] = None,
+    ) -> 'PreparedInlineMessage':
+        """
+        Stores a message that can be sent by a user of a Mini App. Returns a
+        PreparedInlineMessage object.
+
+        :param user_id: Unique identifier of the target user that can use the prepared message
+        :param result: A JSON-serialized object describing the message to be sent
+        :param allow_user_chats: Pass True if the message can be sent to private chats with users
+        :param allow_bot_chats: Pass True if the message can be sent to private chats with bots
+        :param allow_group_chats: Pass True if the message can be sent to group and supergroup chats
+        :param allow_channel_chats: Pass True if the message can be sent to channel chats
+        """
+        pass
+
     async def sendInvoice(
             self,
             *,
@@ -12294,6 +13696,7 @@ class TeleapiAsync(Protocol):
             is_flexible: Optional[bool] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional['InlineKeyboardMarkup'] = None,
@@ -12307,7 +13710,7 @@ class TeleapiAsync(Protocol):
         :param title: Product name, 1-32 characters
         :param description: Product description, 1-255 characters
         :param payload: Bot-defined invoice payload, 1-128 bytes. This will not be displayed
-            to the user, use for your internal processes.
+            to the user, use it for your internal processes.
         :param currency: Three-letter ISO 4217 currency code, see more on currencies. Pass
             “XTR” for payments in Telegram Stars.
         :param prices: Price breakdown, a JSON-serialized list of components (e.g. product
@@ -12360,6 +13763,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
@@ -12377,7 +13783,9 @@ class TeleapiAsync(Protocol):
             payload: str,
             currency: str,
             prices: List['LabeledPrice'],
+            business_connection_id: Optional[str] = None,
             provider_token: Optional[str] = None,
+            subscription_period: Optional[int] = None,
             max_tip_amount: Optional[int] = None,
             suggested_tip_amounts: Optional[List[int]] = None,
             provider_data: Optional[str] = None,
@@ -12400,14 +13808,22 @@ class TeleapiAsync(Protocol):
         :param title: Product name, 1-32 characters
         :param description: Product description, 1-255 characters
         :param payload: Bot-defined invoice payload, 1-128 bytes. This will not be displayed
-            to the user, use for your internal processes.
+            to the user, use it for your internal processes.
         :param currency: Three-letter ISO 4217 currency code, see more on currencies. Pass
             “XTR” for payments in Telegram Stars.
         :param prices: Price breakdown, a JSON-serialized list of components (e.g. product
             price, tax, discount, delivery cost, delivery tax, bonus, etc.). Must
             contain exactly one item for payments in Telegram Stars.
+        :param business_connection_id: Unique identifier of the business connection on behalf of which the
+            link will be created. For payments in Telegram Stars only.
         :param provider_token: Payment provider token, obtained via @BotFather. Pass an empty string
             for payments in Telegram Stars.
+        :param subscription_period: The number of seconds the subscription will be active for before the
+            next payment. The currency must be set to “XTR” (Telegram Stars) if
+            the parameter is used. Currently, it must always be 2592000 (30 days)
+            if specified. Any number of subscriptions can be active for a given
+            bot at the same time, including multiple concurrent subscriptions from
+            the same user. Subscription price must no exceed 2500 Telegram Stars.
         :param max_tip_amount: The maximum accepted amount for tips in the smallest units of the
             currency (integer, not float/double). For example, for a maximum tip
             of US$ 1.45 pass max_tip_amount = 145. See the exp parameter in
@@ -12465,8 +13881,8 @@ class TeleapiAsync(Protocol):
         :param shipping_options: Required if ok is True. A JSON-serialized array of available shipping
             options.
         :param error_message: Required if ok is False. Error message in human readable form that
-            explains why it is impossible to complete the order (e.g. \"Sorry,
-            delivery to your desired address is unavailable'). Telegram will
+            explains why it is impossible to complete the order (e.g. “Sorry,
+            delivery to your desired address is unavailable”). Telegram will
             display this message to the user.
         """
         pass
@@ -12499,6 +13915,22 @@ class TeleapiAsync(Protocol):
         """
         pass
 
+    async def getStarTransactions(
+            self,
+            *,
+            offset: Optional[int] = None,
+            limit: Optional[int] = None,
+    ) -> 'StarTransactions':
+        """
+        Returns the bot's Telegram Star transactions in chronological order.
+        On success, returns a StarTransactions object.
+
+        :param offset: Number of transactions to skip in the response
+        :param limit: The maximum number of transactions to be retrieved. Values between
+            1-100 are accepted. Defaults to 100.
+        """
+        pass
+
     async def refundStarPayment(
             self,
             *,
@@ -12511,6 +13943,26 @@ class TeleapiAsync(Protocol):
 
         :param user_id: Identifier of the user whose payment will be refunded
         :param telegram_payment_charge_id: Telegram payment identifier
+        """
+        pass
+
+    async def editUserStarSubscription(
+            self,
+            *,
+            user_id: int,
+            telegram_payment_charge_id: str,
+            is_canceled: bool,
+    ) -> bool:
+        """
+        Allows the bot to cancel or re-enable extension of a subscription paid
+        in Telegram Stars. Returns True on success.
+
+        :param user_id: Identifier of the user whose subscription will be edited
+        :param telegram_payment_charge_id: Telegram payment identifier for the subscription
+        :param is_canceled: Pass True to cancel extension of the user subscription; the
+            subscription must be active up to the end of the current subscription
+            period. Pass False to allow the user to re-enable a subscription that
+            was previously canceled by the bot.
         """
         pass
 
@@ -12547,6 +13999,7 @@ class TeleapiAsync(Protocol):
             message_thread_id: Optional[int] = None,
             disable_notification: Optional[bool] = None,
             protect_content: Optional[bool] = None,
+            allow_paid_broadcast: Optional[bool] = None,
             message_effect_id: Optional[str] = None,
             reply_parameters: Optional['ReplyParameters'] = None,
             reply_markup: Optional['InlineKeyboardMarkup'] = None,
@@ -12565,6 +14018,9 @@ class TeleapiAsync(Protocol):
         :param disable_notification: Sends the message silently. Users will receive a notification with no
             sound.
         :param protect_content: Protects the contents of the sent message from forwarding and saving
+        :param allow_paid_broadcast: Pass True to allow up to 1000 messages per second, ignoring
+            broadcasting limits for a fee of 0.1 Telegram Stars per message. The
+            relevant Stars will be withdrawn from the bot's balance
         :param message_effect_id: Unique identifier of the message effect to be added to the message;
             for private chats only
         :param reply_parameters: Description of the message to reply to
